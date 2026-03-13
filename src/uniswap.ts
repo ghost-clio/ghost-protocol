@@ -46,8 +46,9 @@ export class UniswapExecutor {
   private wallet: ethers.Wallet | null = null;
   private apiKey: string;
   private dailySwapCount: number = 0;
-  private readonly MAX_SWAPS_PER_DAY = 10;
-  private readonly MAX_SLIPPAGE_BPS = 100; // 1%
+  // Strategy-level limits (slippage, price impact) — NOT spending limits.
+  // Spending limits are enforced by AgentScope on-chain. See SAFETY.md.
+  private readonly MAX_SLIPPAGE_BPS = 100; // 1% — contract can't check this (needs quote data)
 
   constructor(logger: AgentLog) {
     this.logger = logger;
@@ -143,64 +144,45 @@ export class UniswapExecutor {
   }
 
   /**
-   * Execute a swap on-chain via Uniswap.
-   * Includes all safety checks before execution.
+   * Build swap calldata without sending.
+   * Returns the raw transaction data that can be routed through AgentScope/Safe.
+   * 
+   * Strategy-level checks (slippage) happen here.
+   * Spending limits are NOT checked here — that's AgentScope's job (on-chain).
    */
-  async executeSwap(
+  async buildSwapCalldata(
     tokenInSymbol: string,
     tokenOutSymbol: string,
     amountInUsd: number
-  ): Promise<SwapResult> {
-    // Safety check: daily limit
-    if (this.dailySwapCount >= this.MAX_SWAPS_PER_DAY) {
-      const msg = `Daily swap limit reached: ${this.dailySwapCount}/${this.MAX_SWAPS_PER_DAY}`;
-      this.logger.logSafetyCheck('swap-daily-limit', { 
-        count: this.dailySwapCount, 
-        limit: this.MAX_SWAPS_PER_DAY,
-        blocked: true,
-      });
-      return { success: false, error: msg };
-    }
-
-    // Safety check: amount limit
-    if (amountInUsd > 50) {
-      const msg = `Amount $${amountInUsd} exceeds $50 per-trade limit`;
-      this.logger.logSafetyCheck('swap-amount-limit', {
-        amount: amountInUsd,
-        limit: 50,
-        blocked: true,
-      });
-      return { success: false, error: msg };
-    }
-
-    // Safety check: wallet available
-    if (!this.wallet) {
-      this.logger.logSafetyCheck('swap-no-wallet', { blocked: true });
-      return { success: false, error: 'No wallet configured (AGENT_WALLET_KEY not set)' };
-    }
-
+  ): Promise<{ 
+    success: boolean;
+    to?: string;
+    value?: string;
+    data?: string;
+    quote?: SwapQuote;
+    error?: string;
+  }> {
     // Get quote first
     const quote = await this.getQuote(tokenInSymbol, tokenOutSymbol, amountInUsd);
     if (!quote) {
       return { success: false, error: 'Failed to get quote' };
     }
 
-    // Safety check: slippage / price impact
+    // Strategy check: slippage / price impact
+    // This CANNOT be enforced on-chain (needs off-chain quote data).
+    // AgentScope enforces spending limits. This enforces execution quality.
     if (Math.abs(quote.priceImpact) > this.MAX_SLIPPAGE_BPS / 100) {
       const msg = `Price impact ${quote.priceImpact}% exceeds ${this.MAX_SLIPPAGE_BPS / 100}% limit`;
       this.logger.logSafetyCheck('swap-slippage', {
         priceImpact: quote.priceImpact,
         limit: this.MAX_SLIPPAGE_BPS / 100,
         blocked: true,
+        note: 'Strategy-level check (slippage). Spending limits enforced by AgentScope.',
       });
       return { success: false, error: msg };
     }
 
-    // Execute the swap
-    const startTime = Date.now();
     try {
-      // For the hackathon demo, we use Uniswap's swap API
-      // which returns calldata we can submit directly
       const swapResponse = await fetch('https://api.uniswap.org/v2/swap', {
         method: 'POST',
         headers: {
@@ -212,7 +194,7 @@ export class UniswapExecutor {
           tokenInChainId: 8453,
           tokenOutChainId: 8453,
           slippageTolerance: this.MAX_SLIPPAGE_BPS / 10000,
-          deadline: Math.floor(Date.now() / 1000) + 300, // 5 min
+          deadline: Math.floor(Date.now() / 1000) + 300,
         }),
       });
 
@@ -221,25 +203,59 @@ export class UniswapExecutor {
       }
 
       const swapData = await swapResponse.json() as any;
-      
-      // Submit the transaction
-      const tx = await this.wallet.sendTransaction({
+
+      return {
+        success: true,
         to: swapData.to || UNIVERSAL_ROUTER,
-        data: swapData.calldata,
         value: swapData.value || '0',
-        gasLimit: swapData.gasEstimate ? BigInt(swapData.gasEstimate) * 120n / 100n : undefined,
+        data: swapData.calldata,
+        quote,
+      };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Execute a swap directly (local/demo mode — no Safe).
+   * 
+   * In production with AgentScope on-chain, DON'T call this.
+   * Instead, use buildSwapCalldata() + scope.execute() to route through the Safe.
+   * This ensures the on-chain policy is actually enforced, not just checked.
+   * 
+   * See SAFETY.md for the full enforcement model.
+   */
+  async executeSwapDirect(
+    tokenInSymbol: string,
+    tokenOutSymbol: string,
+    amountInUsd: number
+  ): Promise<SwapResult> {
+    if (!this.wallet) {
+      return { success: false, error: 'No wallet configured (AGENT_WALLET_KEY not set)' };
+    }
+
+    const calldata = await this.buildSwapCalldata(tokenInSymbol, tokenOutSymbol, amountInUsd);
+    if (!calldata.success || !calldata.to || !calldata.data) {
+      return { success: false, error: calldata.error || 'Failed to build calldata' };
+    }
+
+    const startTime = Date.now();
+    try {
+      const tx = await this.wallet.sendTransaction({
+        to: calldata.to,
+        data: calldata.data,
+        value: calldata.value || '0',
       });
 
       const receipt = await tx.wait();
       const elapsed = Date.now() - startTime;
-
       this.dailySwapCount++;
 
       const result: SwapResult = {
         success: true,
         txHash: receipt?.hash,
-        amountIn: quote.amountIn,
-        amountOut: quote.amountOut,
+        amountIn: calldata.quote?.amountIn,
+        amountOut: calldata.quote?.amountOut,
         gasUsed: receipt?.gasUsed?.toString(),
       };
 
@@ -249,8 +265,7 @@ export class UniswapExecutor {
         tokenIn: tokenInSymbol,
         tokenOut: tokenOutSymbol,
         amountInUsd,
-        amountOut: result.amountOut,
-        gasUsed: result.gasUsed,
+        route: 'direct (no Safe)',
         latencyMs: elapsed,
         explorerUrl: `https://basescan.org/tx/${result.txHash}`,
         valueUsd: amountInUsd,

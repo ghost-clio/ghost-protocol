@@ -190,11 +190,51 @@ export class GhostProtocolAgent {
           dryRun: true,
           valueUsd: 0,
         });
-      } else {
-        // Real execution — in on-chain mode, goes through Safe
+      } else if (this.scope.isOnChain) {
+        // ON-CHAIN MODE: Route through AgentScope → Safe → Uniswap
+        // The scope contract calls executeAsAgent(), which calls the Safe,
+        // which executes the swap. The contract is the ONLY execution path.
+        console.log('   ⛓️  Routing through AgentScope → Safe → Uniswap...');
+
         const tokenIn = decision.action === 'sell' ? decision.token : 'USDC';
         const amount = decision.amount || 10;
-        const result = await this.executor.executeSwap(tokenIn, tokenOut, amount);
+
+        // Build swap calldata (strategy checks happen here — slippage etc)
+        const calldata = await this.executor.buildSwapCalldata(tokenIn, tokenOut, amount);
+        if (!calldata.success || !calldata.data) {
+          console.log(`   ❌ Calldata build failed: ${calldata.error}`);
+          return;
+        }
+
+        // Build the real proposal with actual Uniswap calldata
+        const realProposal: TransactionProposal = {
+          to: calldata.to!,
+          value: BigInt(calldata.value || '0'),
+          data: calldata.data,
+          description: `${decision.action.toUpperCase()} ${decision.token}: ${amount} USD via Uniswap V3`,
+        };
+
+        // Execute through scope → Safe
+        const walletKey = process.env.AGENT_WALLET_KEY;
+        if (!walletKey) {
+          console.log('   ❌ No AGENT_WALLET_KEY — cannot sign on-chain tx');
+          return;
+        }
+        const signer = new ethers.Wallet(walletKey, new ethers.JsonRpcProvider(this.config.chain.rpcUrl));
+        const result = await this.scope.execute(realProposal, signer);
+
+        if (result.success) {
+          console.log(`   ✅ Swap executed through Safe! TxHash: ${result.txHash}`);
+          console.log(`   🔗 ${this.config.chain.explorerUrl}/tx/${result.txHash}`);
+        } else {
+          console.log(`   ❌ Safe execution failed: ${result.error}`);
+        }
+      } else {
+        // LOCAL MODE: Direct swap (no Safe — explicitly labeled)
+        console.log('   💻 LOCAL MODE — Direct execution (no Safe enforcement)');
+        const tokenIn = decision.action === 'sell' ? decision.token : 'USDC';
+        const amount = decision.amount || 10;
+        const result = await this.executor.executeSwapDirect(tokenIn, tokenOut, amount);
 
         if (result.success) {
           this.scope.recordLocalSpend(proposal.value);
