@@ -11,6 +11,9 @@ Most AI agents are naked. Their reasoning, strategies, and decision processes ar
 ```
 Private Reasoning (Venice.ai) → Safety Guardrails → Public Action (Uniswap)
      zero data retention          hardcoded limits      transparent on-chain
+                                       ↕
+                              ENS ↔ ERC-8004 Identity
+                           human-readable agent trust (optional)
 ```
 
 **Why it matters:** As autonomous agents manage real treasuries, the privacy of their strategy is a competitive advantage. An agent whose reasoning leaks to its inference provider is an agent whose alpha is already priced in.
@@ -114,6 +117,23 @@ TOKENS=ETH,USDC,DAI     # Tokens to monitor
 ✅ Safety check: PASSED (hold = no action needed)
 📝 Logged to agent_log.json
 ```
+
+## ENS ↔ ERC-8004 Identity Bridge (Optional)
+
+Ghost Protocol proposes a convention for linking ENS names to ERC-8004 agent identities across chains:
+
+```
+ghostprotocol.eth (Ethereum mainnet)
+  └─ text records:
+       erc8004.participantId = "040f2f50..."
+       erc8004.chain = "base"
+       erc8004.manifest = "https://...agent.json"
+       erc8004.registrationTxn = "0xc69cbb..."
+```
+
+Any agent can resolve an ENS name → read ERC-8004 records → verify the registration on Base → trust the counterparty. Human-readable, cross-chain, permissionless.
+
+This is **optional** — the agent works fine with just ERC-8004. ENS is a trust upgrade.
 
 ## Prize Tracks
 

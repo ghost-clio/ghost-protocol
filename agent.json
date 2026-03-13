@@ -37,6 +37,13 @@
         "type": "data-api",
         "provider": "CoinGecko / DexScreener",
         "description": "Real-time token price and market data"
+      },
+      {
+        "name": "ens-identity",
+        "type": "identity-resolver",
+        "provider": "ENS + ERC-8004",
+        "description": "Optional trust layer — resolves ENS names to ERC-8004 agent identities cross-chain (Ethereum → Base)",
+        "optional": true
       }
     ],
     "taskCategories": [
