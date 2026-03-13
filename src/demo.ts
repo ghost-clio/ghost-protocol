@@ -9,6 +9,7 @@
 import { AgentLog } from './logger.js';
 import { MarketDataProvider } from './market.js';
 import { demoENSResolution } from './ens.js';
+import { demoAgentScope } from './scope.js';
 
 const logger = new AgentLog(process.cwd());
 const market = new MarketDataProvider(logger);
@@ -170,6 +171,15 @@ async function runDemo() {
   console.log(`     Log entries: ${logger.getEntryCount()}`);
   console.log('\n  📁 Full log: agent_log.json');
   console.log('  📁 Manifest: agent.json');
+
+  // ═══════════════════════════════════════════
+  // PHASE 6: AGENT SCOPE — On-Chain Enforcement
+  // ═══════════════════════════════════════════
+  try {
+    await demoAgentScope(logger);
+  } catch (err: any) {
+    console.log('\n🛡️  AgentScope demo skipped:', err.message, '\n');
+  }
 
   // ═══════════════════════════════════════════
   // BONUS: ENS ↔ ERC-8004 Identity Resolution
