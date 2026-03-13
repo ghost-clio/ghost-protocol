@@ -195,8 +195,9 @@ async function runDemo() {
   console.log('║   Confidential reasoning, scoped action, ║');
   console.log('║   public receipts.                       ║');
   console.log('║                                          ║');
-  console.log('║   Contract: AgentScopeModule.sol         ║');
-  console.log('║   Sepolia:  0x0d0034c6...Bef811          ║');
+  console.log('║   Contracts (Sepolia):                    ║');
+  console.log('║   AgentScopeModule: 0x0d003...Bef811     ║');
+  console.log('║   ERC8004ENSBridge: 0xe4698...ABfdeB     ║');
   console.log('║                                          ║');
   console.log('║   🌀 The ghost is ready.                 ║');
   console.log('╚══════════════════════════════════════════╝');
