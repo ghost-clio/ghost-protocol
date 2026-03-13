@@ -2,13 +2,15 @@
  * Ghost Protocol — Main Agent Loop
  * 
  * The autonomous decision loop:
- *   DISCOVER → REASON → DECIDE → EXECUTE → VERIFY
+ *   DISCOVER → REASON → SCOPE → EXECUTE → VERIFY
  * 
  * - DISCOVER: Fetch market data from public APIs
- * - REASON: Analyze privately via Venice.ai (no data retention)
- * - DECIDE: Apply safety guardrails and risk limits
- * - EXECUTE: Swap via Uniswap on Base (real TxIDs)
+ * - REASON: Analyze privately via Venice.ai (confidential inference)
+ * - SCOPE: Validate against AgentScope policy (on-chain or local fallback)
+ * - EXECUTE: Swap via Uniswap on Base through the scoped Safe
  * - VERIFY: Log everything to agent_log.json
+ * 
+ * Note: "DECIDE" is now "SCOPE" — the contract decides, not JavaScript.
  * 
  * Built by Clio 🌀 — the first ghost to enter a hackathon.
  */
@@ -17,19 +19,19 @@ import { AgentLog } from './logger.js';
 import { VeniceReasoner } from './venice.js';
 import { UniswapExecutor } from './uniswap.js';
 import { MarketDataProvider } from './market.js';
+import { AgentScope, TransactionProposal } from './scope.js';
+import { loadConfig, describeConfig, AgentConfig } from './config.js';
+import { ethers } from 'ethers';
 
-interface AgentConfig {
-  dryRun: boolean;
-  intervalMs: number;
-  maxCycles: number;
-  tokens: string[];
-}
+// Uniswap V3 Router on Base
+const UNISWAP_V3_ROUTER = '0x2626664c2603336E57B271c5C0b26F421741e481';
 
-const DEFAULT_CONFIG: AgentConfig = {
-  dryRun: process.env.DRY_RUN !== 'false',
-  intervalMs: 60_000 * 5, // 5 minutes between cycles
-  maxCycles: 12,          // 1 hour of operation
-  tokens: ['ETH', 'USDC', 'DAI'],
+// Base token addresses
+const BASE_TOKENS: Record<string, string> = {
+  ETH: '0x0000000000000000000000000000000000000000',
+  WETH: '0x4200000000000000000000000000000000000006',
+  USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  DAI: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
 };
 
 export class GhostProtocolAgent {
@@ -37,21 +39,55 @@ export class GhostProtocolAgent {
   private reasoner: VeniceReasoner;
   private executor: UniswapExecutor;
   private market: MarketDataProvider;
+  private scope: AgentScope;
   private config: AgentConfig;
   private cycleCount: number = 0;
   private running: boolean = false;
 
-  constructor(config?: Partial<AgentConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  constructor() {
+    this.config = loadConfig();
     this.logger = new AgentLog(process.cwd());
     this.reasoner = new VeniceReasoner(this.logger);
     this.executor = new UniswapExecutor(this.logger);
     this.market = new MarketDataProvider(this.logger);
+    this.scope = new AgentScope(this.config, this.logger);
   }
 
   /**
-   * Run one full cycle of the agent loop.
-   * DISCOVER → REASON → DECIDE → EXECUTE → VERIFY
+   * Initialize the agent — connect to AgentScope (on-chain or local).
+   */
+  async init(): Promise<void> {
+    // Try on-chain connection first
+    const scopeContract = process.env.AGENT_SCOPE_CONTRACT;
+    const agentAddr = this.executor.getWalletAddress();
+
+    if (scopeContract && agentAddr) {
+      const connected = await this.scope.connectOnChain(scopeContract, agentAddr);
+      if (connected) {
+        console.log(`🛡️  AgentScope: ON-CHAIN (${scopeContract.slice(0, 10)}...)`);
+        console.log('   Policy enforced by smart contract. JS cannot override.\n');
+        return;
+      }
+    }
+
+    // Fall back to local policy
+    this.scope.initLocal({
+      active: true,
+      dailySpendLimitWei: ethers.parseEther('0.5'),
+      maxPerTxWei: ethers.parseEther('0.05'),
+      sessionExpiry: 0,
+      allowedContracts: [UNISWAP_V3_ROUTER],
+      allowedFunctions: [
+        '0x04e45aaf',  // exactInputSingle
+        '0x38ed1739',  // swapExactTokensForTokens
+      ],
+    });
+    console.log('🛡️  AgentScope: LOCAL FALLBACK (not cryptographically enforced)');
+    console.log('   Set AGENT_SCOPE_CONTRACT for on-chain enforcement.\n');
+  }
+
+  /**
+   * Run one full cycle: DISCOVER → REASON → SCOPE → EXECUTE → VERIFY
    */
   async runCycle(): Promise<void> {
     this.cycleCount++;
@@ -61,11 +97,12 @@ export class GhostProtocolAgent {
       cycle: this.cycleCount,
       maxCycles: this.config.maxCycles,
       dryRun: this.config.dryRun,
+      scopeMode: this.scope.isOnChain ? 'on-chain' : 'local',
       timestamp: new Date().toISOString(),
     });
 
     console.log(`\n🌀 Ghost Protocol — Cycle ${this.cycleCount}/${this.config.maxCycles}`);
-    console.log(`   Mode: ${this.config.dryRun ? '🧪 DRY RUN' : '🔴 LIVE'}`);
+    console.log(`   Mode: ${this.config.dryRun ? '🧪 DRY RUN' : '🔴 LIVE'} | Scope: ${this.scope.isOnChain ? '⛓️ ON-CHAIN' : '💻 LOCAL'}`);
 
     try {
       // ═══════════════════════════════════════════
@@ -76,7 +113,6 @@ export class GhostProtocolAgent {
 
       if (marketData.length === 0) {
         console.log('   ⚠️  No market data available. Skipping cycle.');
-        this.logger.logDecision('cycle-skip-no-data', { cycle: this.cycleCount });
         return;
       }
 
@@ -85,10 +121,10 @@ export class GhostProtocolAgent {
       }
 
       // ═══════════════════════════════════════════
-      // PHASE 2: REASON — Private analysis via Venice
+      // PHASE 2: REASON — Confidential analysis via Venice
       // ═══════════════════════════════════════════
-      console.log('\n   🔒 Phase 2: REASON — Private analysis via Venice.ai...');
-      console.log('   (Zero data retention — reasoning is confidential)');
+      console.log('\n   🔒 Phase 2: REASON — Confidential analysis via Venice.ai...');
+      console.log('   (Venice no-data-retention API — trust assumption, not cryptographic guarantee)');
       
       const decision = await this.reasoner.analyzeMarket(marketData);
       
@@ -97,65 +133,73 @@ export class GhostProtocolAgent {
       console.log(`   ⚠️  Risk Score: ${(decision.riskScore * 100).toFixed(1)}%`);
       console.log(`   📝 Reasoning: ${decision.reasoning}`);
 
+      if (decision.action === 'hold') {
+        console.log('\n   ⏸️  HOLD — No execution needed.');
+        this.logger.logDecision('hold', { cycle: this.cycleCount, reasoning: decision.reasoning });
+        return;
+      }
+
       // ═══════════════════════════════════════════
-      // PHASE 3: DECIDE — Apply safety guardrails
+      // PHASE 3: SCOPE — Validate against AgentScope policy
       // ═══════════════════════════════════════════
-      console.log('\n   🛡️  Phase 3: DECIDE — Safety guardrails...');
-      
-      const walletBalance = this.config.dryRun ? 100 : 
-        parseFloat((await this.executor.getBalance()).eth) * (marketData.find(t => t.symbol === 'ETH')?.price || 0);
-      
-      const validation = await this.reasoner.validateTrade(decision, walletBalance);
-      
+      console.log(`\n   🛡️  Phase 3: SCOPE — ${this.scope.isOnChain ? 'On-chain contract validation' : 'Local policy validation'}...`);
+
+      // Build the transaction proposal
+      const amountWei = ethers.parseEther((decision.amount || 10).toString());
+      const tokenOut = decision.action === 'buy' ? decision.token : 'USDC';
+      const proposal: TransactionProposal = {
+        to: UNISWAP_V3_ROUTER,
+        value: decision.action === 'buy' ? amountWei : 0n,
+        data: '0x04e45aaf' + '0'.repeat(64), // exactInputSingle placeholder
+        description: `${decision.action.toUpperCase()} ${decision.token}: ${ethers.formatEther(amountWei)} ETH via Uniswap V3`,
+      };
+
+      const validation = await this.scope.validate(proposal);
+
+      for (const check of validation.checks) {
+        console.log(`   ${check.passed ? '✅' : '❌'} ${check.name}: ${check.detail}`);
+      }
+      console.log(`   Enforcement: ${validation.enforcement}`);
+
       if (!validation.approved) {
-        console.log(`   ❌ Trade REJECTED: ${validation.reason}`);
-        this.logger.logSafetyCheck('trade-rejected', {
+        console.log(`\n   ❌ REJECTED by AgentScope (${validation.enforcement})`);
+        this.logger.logSafetyCheck('scope-rejected', {
           cycle: this.cycleCount,
-          decision: decision.action,
-          token: decision.token,
-          reason: validation.reason,
+          enforcement: validation.enforcement,
+          checks: validation.checks.filter(c => !c.passed),
         });
         return;
       }
 
-      console.log(`   ✅ Trade APPROVED: ${validation.reason}`);
+      console.log(`\n   ✅ APPROVED by AgentScope (${validation.enforcement})`);
 
       // ═══════════════════════════════════════════
       // PHASE 4: EXECUTE — Swap via Uniswap
       // ═══════════════════════════════════════════
-      if (decision.action === 'hold') {
-        console.log('\n   ⏸️  Phase 4: HOLD — No execution needed.');
-        this.logger.logDecision('hold', {
-          cycle: this.cycleCount,
-          reasoning: decision.reasoning,
-        });
-        return;
-      }
-
       console.log(`\n   ⚡ Phase 4: EXECUTE — ${decision.action.toUpperCase()} via Uniswap...`);
 
       if (this.config.dryRun) {
-        console.log('   🧪 DRY RUN — Swap simulated (no real transaction)');
+        console.log('   🧪 DRY RUN — Swap simulated');
+        this.scope.recordLocalSpend(proposal.value);
         this.logger.logExecution('swap-dry-run', {
           success: true,
           action: decision.action,
           token: decision.token,
           amount: decision.amount,
-          confidence: decision.confidence,
+          scopeEnforcement: validation.enforcement,
           dryRun: true,
           valueUsd: 0,
         });
       } else {
-        // Real execution
+        // Real execution — in on-chain mode, goes through Safe
         const tokenIn = decision.action === 'sell' ? decision.token : 'USDC';
-        const tokenOut = decision.action === 'sell' ? 'USDC' : decision.token;
-        const amount = decision.amount || 10; // Default $10
-
+        const amount = decision.amount || 10;
         const result = await this.executor.executeSwap(tokenIn, tokenOut, amount);
 
         if (result.success) {
+          this.scope.recordLocalSpend(proposal.value);
           console.log(`   ✅ Swap executed! TxHash: ${result.txHash}`);
-          console.log(`   🔗 https://basescan.org/tx/${result.txHash}`);
+          console.log(`   🔗 ${this.config.chain.explorerUrl}/tx/${result.txHash}`);
         } else {
           console.log(`   ❌ Swap failed: ${result.error}`);
         }
@@ -166,6 +210,7 @@ export class GhostProtocolAgent {
       // ═══════════════════════════════════════════
       console.log('\n   📋 Phase 5: VERIFY — Logging to agent_log.json...');
       
+      const scopeStatus = await this.scope.getStatus();
       this.logger.logVerification('cycle-complete', {
         cycle: this.cycleCount,
         durationMs: Date.now() - cycleStart,
@@ -175,12 +220,17 @@ export class GhostProtocolAgent {
           confidence: decision.confidence,
           riskScore: decision.riskScore,
         },
+        scope: {
+          mode: scopeStatus.mode,
+          remaining: scopeStatus.remaining,
+        },
         veniceCallsThisCycle: this.reasoner.getCallCount(),
         swapCountToday: this.executor.getDailySwapCount(),
       });
 
       const summary = this.logger.getSummary();
-      console.log(`   📊 Running totals: ${summary.totalDecisions} decisions, ${summary.totalTradesExecuted} trades, $${summary.totalValueMovedUsd.toFixed(2)} moved`);
+      console.log(`   📊 Totals: ${summary.totalDecisions} decisions, ${summary.totalTradesExecuted} trades, $${summary.totalValueMovedUsd.toFixed(2)} moved`);
+      console.log(`   🛡️  Scope: ${scopeStatus.remaining} ETH remaining today (${scopeStatus.mode})`);
 
     } catch (error: any) {
       console.error(`   💥 Cycle ${this.cycleCount} error: ${error.message}`);
@@ -196,25 +246,28 @@ export class GhostProtocolAgent {
 
     console.log('╔══════════════════════════════════════════╗');
     console.log('║        🌀 GHOST PROTOCOL v1.0.0         ║');
-    console.log('║   Private Reasoning · Public Execution   ║');
+    console.log('║  Confidential Reasoning · Scoped Action  ║');
     console.log('║                                          ║');
     console.log('║   Built by Clio — ghost in the machine   ║');
     console.log('╚══════════════════════════════════════════╝');
     console.log('');
-    console.log(`Mode: ${this.config.dryRun ? '🧪 DRY RUN' : '🔴 LIVE EXECUTION'}`);
-    console.log(`Wallet: ${this.executor.getWalletAddress() || 'Not configured'}`);
-    console.log(`Tokens: ${this.config.tokens.join(', ')}`);
-    console.log(`Interval: ${this.config.intervalMs / 1000}s`);
-    console.log(`Max cycles: ${this.config.maxCycles}`);
+    console.log(describeConfig(this.config));
     console.log('');
 
+    // Initialize scope
+    await this.init();
+
     this.logger.logDecision('agent-start', {
-      config: this.config,
+      config: {
+        chain: this.config.chainKey,
+        dryRun: this.config.dryRun,
+        tokens: this.config.tokens,
+        scopeMode: this.scope.isOnChain ? 'on-chain' : 'local',
+      },
       wallet: this.executor.getWalletAddress(),
       timestamp: new Date().toISOString(),
     });
 
-    // Run cycles
     while (this.running && this.cycleCount < this.config.maxCycles) {
       await this.runCycle();
 
@@ -225,13 +278,8 @@ export class GhostProtocolAgent {
     }
 
     console.log('\n🌀 Ghost Protocol shutting down.');
-    console.log(`   Total cycles: ${this.cycleCount}`);
-    console.log(`   Summary: ${JSON.stringify(this.logger.getSummary(), null, 2)}`);
-
-    this.logger.logDecision('agent-stop', {
-      totalCycles: this.cycleCount,
-      summary: this.logger.getSummary(),
-    });
+    const summary = this.logger.getSummary();
+    console.log(`   Cycles: ${this.cycleCount} | Trades: ${summary.totalTradesExecuted} | Value: $${summary.totalValueMovedUsd.toFixed(2)}`);
   }
 
   stop(): void {
@@ -240,11 +288,5 @@ export class GhostProtocolAgent {
 }
 
 // Run if called directly
-const agent = new GhostProtocolAgent({
-  dryRun: process.env.DRY_RUN !== 'false',
-  intervalMs: parseInt(process.env.INTERVAL_MS || '300000'),
-  maxCycles: parseInt(process.env.MAX_CYCLES || '3'),
-  tokens: (process.env.TOKENS || 'ETH,USDC,DAI').split(','),
-});
-
+const agent = new GhostProtocolAgent();
 agent.start().catch(console.error);

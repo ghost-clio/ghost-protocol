@@ -83,16 +83,8 @@ export interface AgentConfig {
   ensEnabled: boolean;
   ensName?: string;
 
-  // Safety guardrails (hardcoded, not overridable by LLM)
-  safety: {
-    maxValuePerSwapUsd: number;
-    maxSlippageBps: number;
-    maxSwapsPerDay: number;
-    maxLlmCallsPerHour: number;
-    minConfidence: number;
-    maxRiskScore: number;
-    humanApprovalAboveUsd: number;
-  };
+  // AgentScope contract (on-chain enforcement)
+  scopeContract?: string;         // Address of deployed AgentScopeModule
 }
 
 export function loadConfig(): AgentConfig {
@@ -131,16 +123,10 @@ export function loadConfig(): AgentConfig {
     ensEnabled: process.env.ENS_ENABLED !== 'false' && chain.ensSupport !== 'none',
     ensName: process.env.ENS_NAME,
 
-    // Safety guardrails — HARDCODED. Not configurable by env or LLM.
-    safety: {
-      maxValuePerSwapUsd: 50,
-      maxSlippageBps: 100,
-      maxSwapsPerDay: 10,
-      maxLlmCallsPerHour: 60,
-      minConfidence: 0.6,
-      maxRiskScore: 0.7,
-      humanApprovalAboveUsd: 100,
-    },
+    // AgentScope: on-chain enforcement replaces hardcoded JS limits.
+    // If set, the agent validates all transactions against the deployed contract.
+    // If not set, AgentScope runs in local fallback mode (same logic, not on-chain).
+    scopeContract: process.env.AGENT_SCOPE_CONTRACT,
   };
 }
 
@@ -156,6 +142,7 @@ export function describeConfig(config: AgentConfig): string {
     `🆔 ENS: ${config.ensEnabled ? (config.ensName || 'enabled (no name set)') : 'disabled'}`,
     `🔒 Venice: ${config.veniceApiKey ? 'configured' : 'demo mode'}`,
     `💱 Uniswap: ${config.uniswapApiKey ? 'configured' : 'demo mode'}`,
+    `🛡️  Scope: ${config.scopeContract ? `on-chain (${config.scopeContract.slice(0, 10)}...)` : 'local fallback'}`,
     `💰 Wallet: ${config.walletKey ? 'configured' : 'not set'}`,
     `🧪 Dry run: ${config.dryRun}`,
     `📊 Tokens: ${config.tokens.join(', ')}`,

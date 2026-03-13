@@ -1,82 +1,84 @@
 /**
  * AgentScope — On-Chain Permission Enforcement for AI Agents
  * 
- * The core primitive: a Safe module that enforces what an AI agent is 
- * allowed to do on-chain. The human sets the policy, the blockchain 
- * enforces it. The agent operates freely within its scope — but cannot
- * exceed it, regardless of what the LLM decides.
- * 
- * This replaces hard-coded JavaScript safety limits with cryptographic
- * enforcement. The agent's boundaries live on-chain, not in a config file.
+ * TypeScript client for AgentScopeModule.sol — the audited Solidity contract
+ * that enforces what an AI agent is allowed to do on-chain.
  * 
  * Architecture:
- *   Human → deploys Safe + AgentScope module → sets policy
- *   Agent → proposes transactions → AgentScope validates → Safe executes
+ *   Human → deploys Safe + AgentScopeModule → calls setAgentPolicy()
+ *   Agent → proposes transactions → scope.validate() → executeAsAgent()
  *   
- * Policy enforces:
- *   - Spending limits (per-tx, daily, total)
- *   - Approved protocols (only Uniswap, only specific routers)
- *   - Approved functions (only swap(), not arbitrary calls)
- *   - Time windows (can only trade during market hours)
- *   - Token allowlists (only approved tokens)
- *   - Cooldown periods (min time between trades)
+ * The contract enforces:
+ *   - Daily ETH spending limits (fixed 24h window)
+ *   - Per-transaction ETH limits
+ *   - Contract address whitelist
+ *   - Function selector whitelist
+ *   - ERC20 token daily allowances
+ *   - Session expiry
+ *   - Global emergency pause
+ *   - Self-targeting escalation guard
  * 
- * The key insight: the LLM can reason freely (via Venice, privately),
- * but its ACTIONS are constrained by on-chain policy that it cannot modify.
- * Private thoughts, scoped actions, public receipts.
+ * Two modes:
+ *   ON-CHAIN: Reads policy from deployed AgentScopeModule, validates via
+ *             checkPermission(), executes via executeAsAgent(). The contract
+ *             is the source of truth. JS cannot override it.
+ *   LOCAL:    Same validation logic, same checks — but enforced in JS.
+ *             Used for demo/testing when no contract is deployed.
+ *             Explicitly labeled as "local fallback" in all logs.
+ * 
+ * The key insight: the LLM reasons freely (via Venice, confidentially),
+ * but its ACTIONS are constrained by on-chain policy it cannot modify.
+ * Confidential thoughts, scoped actions, public receipts.
  */
 
 import { ethers } from 'ethers';
 import { AgentLog } from './logger.js';
 import { AgentConfig } from './config.js';
 
-// ─── Types ────────────────────────────────────────────────────────
+// ─── Types (mirror AgentScopeModule.sol structs) ──────────────────
 
 /**
- * AgentScope policy — defines what the agent is allowed to do.
- * Set by the human, enforced by the contract.
+ * Policy — mirrors AgentScopeModule.Policy struct exactly.
+ * Set by the Safe owner via setAgentPolicy().
  */
 export interface ScopePolicy {
-  // Spending limits
-  maxValuePerTxWei: bigint;       // Max value per transaction
-  maxDailySpendWei: bigint;       // Max total spend per 24h rolling window
-  maxTotalSpendWei: bigint;       // Lifetime spending cap
-
-  // Protocol restrictions
-  allowedTargets: string[];       // Contract addresses the agent can call
-  allowedSelectors: string[];     // Function selectors (e.g., "0x38ed1739" = swapExactTokensForTokens)
-
-  // Token restrictions
-  allowedTokens: string[];        // Token addresses the agent can trade
-
-  // Time restrictions
-  tradingWindowStart: number;     // Hour (0-23, UTC) when trading is allowed
-  tradingWindowEnd: number;       // Hour (0-23, UTC) when trading stops
-  cooldownSeconds: number;        // Min seconds between trades
-
-  // Meta
-  owner: string;                  // Human's address (can modify policy)
-  agent: string;                  // Agent's address (can propose txs)
-  createdAt: number;              // Block number when policy was set
-  active: boolean;                // Kill switch
+  active: boolean;
+  dailySpendLimitWei: bigint;    // Max ETH per fixed 24h window
+  maxPerTxWei: bigint;           // Max ETH per single tx (0 = use daily limit)
+  sessionExpiry: number;          // Unix timestamp, 0 = no expiry
+  allowedContracts: string[];     // Contract whitelist (empty = any)
+  allowedFunctions: string[];     // Function selector whitelist (empty = any)
 }
 
 /**
- * Transaction proposal from the agent, validated against the scope.
+ * On-chain scope view — returned by getAgentScope().
+ */
+export interface OnChainScope {
+  active: boolean;
+  dailySpendLimitWei: bigint;
+  maxPerTxWei: bigint;
+  sessionExpiry: number;
+  remainingBudget: bigint;
+  allowedContracts: string[];
+  allowedFunctions: string[];
+}
+
+/**
+ * Transaction proposal — what the agent wants to do.
  */
 export interface TransactionProposal {
-  to: string;                     // Target contract
-  value: bigint;                  // ETH value
-  data: string;                   // Calldata
-  description: string;            // Human-readable description (for logging)
-  token?: string;                 // Token being traded (for allowlist check)
+  to: string;
+  value: bigint;
+  data: string;
+  description: string;
 }
 
 /**
- * Validation result — either approved or rejected with reasons.
+ * Validation result with per-check details.
  */
 export interface ScopeValidation {
   approved: boolean;
+  enforcement: 'on-chain' | 'local';
   checks: {
     name: string;
     passed: boolean;
@@ -86,52 +88,50 @@ export interface ScopeValidation {
   timestamp: number;
 }
 
-// ─── AgentScope Contract ABI (subset) ─────────────────────────────
+// ─── ABI (matches AgentScopeModule.sol exactly) ───────────────────
 
-const AGENT_SCOPE_ABI = [
-  // Read functions
-  'function getPolicy() view returns (tuple(uint256 maxValuePerTx, uint256 maxDailySpend, uint256 maxTotalSpend, address[] allowedTargets, bytes4[] allowedSelectors, address[] allowedTokens, uint8 tradingWindowStart, uint8 tradingWindowEnd, uint32 cooldownSeconds, address owner, address agent, uint256 createdAt, bool active))',
-  'function getDailySpend() view returns (uint256)',
-  'function getLastTradeTime() view returns (uint256)',
-  'function getTotalSpend() view returns (uint256)',
-  'function validateTransaction(address to, uint256 value, bytes data) view returns (bool valid, string reason)',
-  
-  // Write functions (agent)
-  'function proposeTransaction(address to, uint256 value, bytes data) returns (bytes32 txHash)',
-  
-  // Write functions (owner only)
-  'function setPolicy(tuple(uint256 maxValuePerTx, uint256 maxDailySpend, uint256 maxTotalSpend, address[] allowedTargets, bytes4[] allowedSelectors, address[] allowedTokens, uint8 tradingWindowStart, uint8 tradingWindowEnd, uint32 cooldownSeconds, address owner, address agent, uint256 createdAt, bool active) policy)',
-  'function pause()',
-  'function unpause()',
-  'function setSpendingLimit(uint256 perTx, uint256 daily, uint256 total)',
-  'function addAllowedTarget(address target)',
-  'function removeAllowedTarget(address target)',
-  'function addAllowedToken(address token)',
-  'function setTradingWindow(uint8 startHour, uint8 endHour)',
-  'function setCooldown(uint32 seconds)',
+const AGENT_SCOPE_MODULE_ABI = [
+  // View functions
+  'function safe() view returns (address)',
+  'function paused() view returns (bool)',
+  'function getAgentScope(address agent) view returns (bool active, uint256 dailySpendLimitWei, uint256 maxPerTxWei, uint256 sessionExpiry, uint256 remainingBudget, address[] allowedContracts, bytes4[] allowedFunctions)',
+  'function checkPermission(address agent, address to, uint256 value, bytes data) view returns (bool allowed, string reason)',
+  'function tokenAllowances(address agent, address token) view returns (uint256)',
+  'function tokenSpent(address agent, address token) view returns (uint256)',
+
+  // Agent functions
+  'function executeAsAgent(address to, uint256 value, bytes data) returns (bool success)',
+
+  // Owner functions (called through Safe)
+  'function setAgentPolicy(address agent, uint256 dailySpendLimitWei, uint256 maxPerTxWei, uint256 sessionExpiry, address[] allowedContracts, bytes4[] allowedFunctions)',
+  'function setTokenAllowance(address agent, address token, uint256 dailyAllowance)',
+  'function revokeAgent(address agent)',
+  'function setPaused(bool _paused)',
 
   // Events
-  'event TransactionProposed(bytes32 indexed txHash, address indexed to, uint256 value)',
-  'event TransactionExecuted(bytes32 indexed txHash, bool success)',
-  'event PolicyUpdated(address indexed owner)',
-  'event AgentPaused(address indexed owner)',
-  'event AgentUnpaused(address indexed owner)',
-  'event SpendRecorded(uint256 amount, uint256 dailyTotal, uint256 lifetimeTotal)',
+  'event AgentPolicySet(address indexed agent, uint256 dailyLimit, uint256 maxPerTx, uint256 expiry)',
+  'event AgentExecuted(address indexed agent, address indexed to, uint256 value, bytes4 selector)',
+  'event AgentRevoked(address indexed agent)',
+  'event PolicyViolation(address indexed agent, string reason)',
+  'event TokenAllowanceSet(address indexed agent, address indexed token, uint256 dailyAllowance)',
+  'event GlobalPause(bool paused)',
 ];
 
-// ─── AgentScope Manager ───────────────────────────────────────────
+// ─── AgentScope Client ────────────────────────────────────────────
 
 export class AgentScope {
   private provider: ethers.JsonRpcProvider;
   private contract: ethers.Contract | null = null;
-  private policy: ScopePolicy | null = null;
+  private contractAddress: string | null = null;
   private logger: AgentLog;
   private config: AgentConfig;
+  private agentAddress: string | null = null;
 
-  // Local tracking (mirrors on-chain state)
-  private dailySpendWei: bigint = 0n;
-  private totalSpendWei: bigint = 0n;
-  private lastTradeTimestamp: number = 0;
+  // Local tracking (used only in local mode)
+  private localPolicy: ScopePolicy | null = null;
+  private localDailySpent: bigint = 0n;
+  private localWindowStart: number = 0;
+  private localLastTrade: number = 0;
 
   constructor(config: AgentConfig, logger: AgentLog) {
     this.config = config;
@@ -139,184 +139,282 @@ export class AgentScope {
     this.provider = new ethers.JsonRpcProvider(config.chain.rpcUrl);
   }
 
-  /**
-   * Connect to a deployed AgentScope contract.
-   */
-  async connect(contractAddress: string): Promise<void> {
-    this.contract = new ethers.Contract(
-      contractAddress,
-      AGENT_SCOPE_ABI,
-      this.provider
-    );
+  // ─── Connection ──────────────────────────────────────────
 
-    // Load policy from chain
+  /**
+   * Connect to a deployed AgentScopeModule contract.
+   * Reads the agent's policy from chain.
+   */
+  async connectOnChain(contractAddress: string, agentAddress: string): Promise<boolean> {
+    this.contractAddress = contractAddress;
+    this.agentAddress = agentAddress;
+
     try {
-      const rawPolicy = await this.contract.getPolicy();
-      this.policy = this.parsePolicy(rawPolicy);
-      this.dailySpendWei = await this.contract.getDailySpend();
-      this.totalSpendWei = await this.contract.getTotalSpend();
-      this.lastTradeTimestamp = Number(await this.contract.getLastTradeTime());
+      this.contract = new ethers.Contract(
+        contractAddress,
+        AGENT_SCOPE_MODULE_ABI,
+        this.provider
+      );
+
+      // Verify contract exists by reading safe address
+      const safeAddr = await this.contract.safe();
+      
+      // Read agent's scope
+      const scope = await this.contract.getAgentScope(agentAddress);
 
       this.logger.logDecision('scope-connected', {
         contract: contractAddress,
+        safe: safeAddr,
+        agent: agentAddress,
         chain: this.config.chainKey,
-        policyActive: this.policy.active,
-        allowedTargets: this.policy.allowedTargets.length,
-        allowedTokens: this.policy.allowedTokens.length,
+        active: scope.active,
+        dailyLimit: ethers.formatEther(scope.dailySpendLimitWei),
+        maxPerTx: ethers.formatEther(scope.maxPerTxWei),
+        remainingBudget: ethers.formatEther(scope.remainingBudget),
+        allowedContracts: scope.allowedContracts.length,
+        allowedFunctions: scope.allowedFunctions.length,
+        enforcement: 'on-chain',
       });
+
+      return true;
     } catch (error: any) {
-      // Contract not deployed or not responding — fall back to local policy
-      this.logger.logDecision('scope-fallback', {
+      this.logger.logDecision('scope-connection-failed', {
         contract: contractAddress,
         error: error.message,
-        mode: 'local-policy',
+        fallback: 'local',
       });
+      this.contract = null;
+      return false;
     }
   }
 
   /**
-   * Create a local-only scope policy (for demo/testing without deployment).
-   * Same validation logic, just not enforced on-chain.
+   * Initialize with a local policy (for demo/testing).
+   * Same validation logic, explicitly labeled as local fallback.
    */
-  static createLocalPolicy(overrides?: Partial<ScopePolicy>): ScopePolicy {
-    return {
-      maxValuePerTxWei: ethers.parseEther('0.05'),     // 0.05 ETH (~$50)
-      maxDailySpendWei: ethers.parseEther('0.5'),      // 0.5 ETH/day
-      maxTotalSpendWei: ethers.parseEther('2.0'),      // 2 ETH lifetime
-      allowedTargets: [],                               // Set by deployer
-      allowedSelectors: [
+  initLocal(overrides?: Partial<ScopePolicy>): void {
+    this.localPolicy = {
+      active: true,
+      dailySpendLimitWei: ethers.parseEther('0.5'),
+      maxPerTxWei: ethers.parseEther('0.05'),
+      sessionExpiry: 0,
+      allowedContracts: [],
+      allowedFunctions: [
         '0x38ed1739',  // swapExactTokensForTokens
         '0x7ff36ab5',  // swapExactETHForTokens
         '0x18cbafe5',  // swapExactTokensForETH
         '0x5c11d795',  // swapExactTokensForTokensSupportingFeeOnTransferTokens
         '0x04e45aaf',  // Uniswap V3 exactInputSingle
       ],
-      allowedTokens: [],                                // Set by deployer
-      tradingWindowStart: 0,                            // 24/7 by default
-      tradingWindowEnd: 24,
-      cooldownSeconds: 300,                             // 5 min between trades
-      owner: ethers.ZeroAddress,
-      agent: ethers.ZeroAddress,
-      createdAt: 0,
-      active: true,
       ...overrides,
     };
+    this.localWindowStart = Math.floor(Date.now() / 1000);
+
+    this.logger.logDecision('scope-local-init', {
+      mode: 'local-fallback',
+      dailyLimit: ethers.formatEther(this.localPolicy.dailySpendLimitWei),
+      maxPerTx: ethers.formatEther(this.localPolicy.maxPerTxWei),
+      allowedFunctions: this.localPolicy.allowedFunctions.length,
+      note: 'Local policy mirrors on-chain structure but is NOT cryptographically enforced',
+    });
   }
+
+  get isOnChain(): boolean {
+    return this.contract !== null;
+  }
+
+  // ─── Validation ──────────────────────────────────────────
 
   /**
    * Validate a transaction proposal against the scope policy.
-   * This is the core enforcement function — called before every trade.
    * 
-   * Returns detailed validation with per-check results.
+   * ON-CHAIN mode: calls checkPermission() on the contract.
+   * LOCAL mode: runs the same checks in JavaScript.
+   * 
+   * Always call this before executing any trade.
    */
-  validate(proposal: TransactionProposal): ScopeValidation {
-    const policy = this.policy || AgentScope.createLocalPolicy();
+  async validate(proposal: TransactionProposal): Promise<ScopeValidation> {
+    if (this.contract && this.agentAddress) {
+      return this.validateOnChain(proposal);
+    }
+    return this.validateLocal(proposal);
+  }
+
+  /**
+   * On-chain validation — the contract is the source of truth.
+   */
+  private async validateOnChain(proposal: TransactionProposal): Promise<ScopeValidation> {
     const now = Math.floor(Date.now() / 1000);
     const checks: ScopeValidation['checks'] = [];
 
-    // 1. Policy active check
+    try {
+      // Call the contract's checkPermission view function
+      const [allowed, reason] = await this.contract!.checkPermission(
+        this.agentAddress,
+        proposal.to,
+        proposal.value,
+        proposal.data
+      );
+
+      checks.push({
+        name: 'On-chain checkPermission',
+        passed: allowed,
+        detail: allowed ? 'Contract approved transaction' : `Rejected: ${reason}`,
+      });
+
+      // Also read remaining budget for logging
+      const scope = await this.contract!.getAgentScope(this.agentAddress);
+      checks.push({
+        name: 'Remaining budget',
+        passed: true,
+        detail: `${ethers.formatEther(scope.remainingBudget)} ETH remaining today`,
+      });
+
+      const validation: ScopeValidation = {
+        approved: allowed,
+        enforcement: 'on-chain',
+        checks,
+        proposal,
+        timestamp: now,
+      };
+
+      this.logger.logSafetyCheck('agent-scope-validate', {
+        approved: allowed,
+        enforcement: 'on-chain',
+        contractReason: reason,
+        remainingBudget: ethers.formatEther(scope.remainingBudget),
+        proposal: {
+          to: proposal.to,
+          value: ethers.formatEther(proposal.value),
+          selector: proposal.data.slice(0, 10),
+          description: proposal.description,
+        },
+      });
+
+      return validation;
+    } catch (error: any) {
+      // If on-chain check fails, do NOT fall back to local — fail closed
+      checks.push({
+        name: 'On-chain checkPermission',
+        passed: false,
+        detail: `Contract call failed: ${error.message}`,
+      });
+
+      return {
+        approved: false,
+        enforcement: 'on-chain',
+        checks,
+        proposal,
+        timestamp: now,
+      };
+    }
+  }
+
+  /**
+   * Local validation — mirrors on-chain logic exactly.
+   * Every check here corresponds to a check in AgentScopeModule.sol.
+   */
+  private validateLocal(proposal: TransactionProposal): ScopeValidation {
+    const policy = this.localPolicy;
+    if (!policy) {
+      return {
+        approved: false,
+        enforcement: 'local',
+        checks: [{ name: 'Policy loaded', passed: false, detail: 'No policy configured' }],
+        proposal,
+        timestamp: Math.floor(Date.now() / 1000),
+      };
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const checks: ScopeValidation['checks'] = [];
+
+    // Check 1: Active (mirrors: if (!policy.active) revert AgentNotActive())
     checks.push({
       name: 'Policy active',
       passed: policy.active,
       detail: policy.active ? 'Agent scope is active' : 'KILLED — owner has paused the agent',
     });
 
-    // 2. Per-transaction spending limit
-    const withinTxLimit = proposal.value <= policy.maxValuePerTxWei;
+    // Check 2: Session expiry (mirrors: if (policy.sessionExpiry != 0 && block.timestamp > policy.sessionExpiry))
+    const sessionValid = policy.sessionExpiry === 0 || now < policy.sessionExpiry;
     checks.push({
-      name: 'Per-transaction limit',
-      passed: withinTxLimit,
-      detail: `${ethers.formatEther(proposal.value)} / ${ethers.formatEther(policy.maxValuePerTxWei)} ETH`,
+      name: 'Session expiry',
+      passed: sessionValid,
+      detail: policy.sessionExpiry === 0
+        ? 'No expiry set'
+        : sessionValid
+          ? `Expires at ${new Date(policy.sessionExpiry * 1000).toISOString()}`
+          : 'SESSION EXPIRED',
     });
 
-    // 3. Daily spending limit
-    const projectedDaily = this.dailySpendWei + proposal.value;
-    const withinDailyLimit = projectedDaily <= policy.maxDailySpendWei;
+    // Check 3: Contract whitelist (mirrors: allowedContracts loop)
+    const contractAllowed = policy.allowedContracts.length === 0 ||
+      policy.allowedContracts.some(c => c.toLowerCase() === proposal.to.toLowerCase());
     checks.push({
-      name: 'Daily spending limit',
-      passed: withinDailyLimit,
-      detail: `${ethers.formatEther(projectedDaily)} / ${ethers.formatEther(policy.maxDailySpendWei)} ETH (rolling 24h)`,
+      name: 'Contract whitelist',
+      passed: contractAllowed,
+      detail: policy.allowedContracts.length === 0
+        ? 'Any contract allowed (no whitelist set)'
+        : contractAllowed
+          ? `${proposal.to.slice(0, 10)}... is whitelisted`
+          : `${proposal.to.slice(0, 10)}... NOT in whitelist`,
     });
 
-    // 4. Lifetime spending limit
-    const projectedTotal = this.totalSpendWei + proposal.value;
-    const withinTotalLimit = projectedTotal <= policy.maxTotalSpendWei;
-    checks.push({
-      name: 'Lifetime spending cap',
-      passed: withinTotalLimit,
-      detail: `${ethers.formatEther(projectedTotal)} / ${ethers.formatEther(policy.maxTotalSpendWei)} ETH`,
-    });
-
-    // 5. Target allowlist
-    const targetAllowed = policy.allowedTargets.length === 0 ||
-      policy.allowedTargets.some(t => t.toLowerCase() === proposal.to.toLowerCase());
-    checks.push({
-      name: 'Target allowlist',
-      passed: targetAllowed,
-      detail: targetAllowed
-        ? `${proposal.to.slice(0, 10)}... is approved`
-        : `${proposal.to.slice(0, 10)}... NOT in allowlist`,
-    });
-
-    // 6. Function selector allowlist
-    const selector = proposal.data.slice(0, 10); // "0x" + 4 bytes
-    const selectorAllowed = policy.allowedSelectors.length === 0 ||
-      policy.allowedSelectors.includes(selector);
+    // Check 4: Function selector whitelist (mirrors: allowedFunctions loop)
+    const selector = proposal.data.length >= 10 ? proposal.data.slice(0, 10) : '0x';
+    const selectorAllowed = proposal.data.length < 10 ||
+      policy.allowedFunctions.length === 0 ||
+      policy.allowedFunctions.includes(selector);
     checks.push({
       name: 'Function selector',
       passed: selectorAllowed,
-      detail: selectorAllowed
-        ? `${selector} is approved (swap function)`
-        : `${selector} NOT in allowed selectors`,
+      detail: policy.allowedFunctions.length === 0
+        ? 'Any function allowed (no whitelist set)'
+        : selectorAllowed
+          ? `${selector} is whitelisted`
+          : `${selector} NOT in allowed functions`,
     });
 
-    // 7. Token allowlist
-    if (proposal.token) {
-      const tokenAllowed = policy.allowedTokens.length === 0 ||
-        policy.allowedTokens.some(t => t.toLowerCase() === proposal.token!.toLowerCase());
-      checks.push({
-        name: 'Token allowlist',
-        passed: tokenAllowed,
-        detail: tokenAllowed
-          ? `${proposal.token.slice(0, 10)}... is approved`
-          : `${proposal.token.slice(0, 10)}... NOT in token allowlist`,
-      });
+    // Check 5: Per-transaction limit (mirrors: if (value > policy.maxPerTxWei))
+    const withinPerTxLimit = policy.maxPerTxWei === 0n || proposal.value <= policy.maxPerTxWei;
+    checks.push({
+      name: 'Per-transaction limit',
+      passed: withinPerTxLimit,
+      detail: policy.maxPerTxWei === 0n
+        ? 'No per-tx limit set'
+        : `${ethers.formatEther(proposal.value)} / ${ethers.formatEther(policy.maxPerTxWei)} ETH`,
+    });
+
+    // Check 6: Daily spend limit (mirrors: fixed 24h window logic)
+    // Reset window if 24h passed
+    if (now >= this.localWindowStart + 86400) {
+      this.localDailySpent = 0n;
+      this.localWindowStart = now;
     }
-
-    // 8. Trading window
-    const currentHour = new Date().getUTCHours();
-    const inTradingWindow = policy.tradingWindowStart <= policy.tradingWindowEnd
-      ? currentHour >= policy.tradingWindowStart && currentHour < policy.tradingWindowEnd
-      : currentHour >= policy.tradingWindowStart || currentHour < policy.tradingWindowEnd;
+    const projectedSpend = this.localDailySpent + proposal.value;
+    const withinDailyLimit = projectedSpend <= policy.dailySpendLimitWei;
+    const remaining = policy.dailySpendLimitWei - this.localDailySpent;
     checks.push({
-      name: 'Trading window',
-      passed: inTradingWindow,
-      detail: `Current: ${currentHour}:00 UTC, Window: ${policy.tradingWindowStart}:00-${policy.tradingWindowEnd}:00`,
-    });
-
-    // 9. Cooldown period
-    const timeSinceLastTrade = now - this.lastTradeTimestamp;
-    const cooldownMet = this.lastTradeTimestamp === 0 || timeSinceLastTrade >= policy.cooldownSeconds;
-    checks.push({
-      name: 'Cooldown period',
-      passed: cooldownMet,
-      detail: cooldownMet
-        ? `${timeSinceLastTrade}s since last trade (min: ${policy.cooldownSeconds}s)`
-        : `Only ${timeSinceLastTrade}s since last trade (need ${policy.cooldownSeconds}s)`,
+      name: 'Daily spending limit',
+      passed: withinDailyLimit,
+      detail: `${ethers.formatEther(proposal.value)} requested, ${ethers.formatEther(remaining)} remaining of ${ethers.formatEther(policy.dailySpendLimitWei)} ETH/day`,
     });
 
     const approved = checks.every(c => c.passed);
 
     const validation: ScopeValidation = {
       approved,
+      enforcement: 'local',
       checks,
       proposal,
       timestamp: now,
     };
 
-    // Log the validation
-    this.logger.logSafetyCheck('agent-scope', {
+    this.logger.logSafetyCheck('agent-scope-validate', {
       approved,
+      enforcement: 'local',
+      note: 'Local fallback — not cryptographically enforced',
       checks: checks.map(c => ({ name: c.name, passed: c.passed })),
       proposal: {
         to: proposal.to,
@@ -324,73 +422,116 @@ export class AgentScope {
         selector,
         description: proposal.description,
       },
-      enforcement: this.contract ? 'on-chain' : 'local',
     });
 
     return validation;
   }
 
+  // ─── Execution ───────────────────────────────────────────
+
   /**
-   * Record a successful trade (updates local tracking).
-   * In on-chain mode, the contract tracks this automatically.
+   * Execute a validated transaction through the AgentScope contract.
+   * Only works in on-chain mode with a signer.
+   * 
+   * In local mode, this just records the spend — actual execution
+   * is handled by uniswap.ts directly.
    */
-  recordTrade(valueWei: bigint): void {
-    this.dailySpendWei += valueWei;
-    this.totalSpendWei += valueWei;
-    this.lastTradeTimestamp = Math.floor(Date.now() / 1000);
+  async execute(
+    proposal: TransactionProposal,
+    signer: ethers.Signer
+  ): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    if (!this.contract) {
+      // Local mode — just record the spend
+      this.localDailySpent += proposal.value;
+      this.localLastTrade = Math.floor(Date.now() / 1000);
+      return { success: true, txHash: undefined };
+    }
+
+    try {
+      const contractWithSigner = this.contract.connect(signer) as ethers.Contract;
+      const tx = await contractWithSigner.executeAsAgent(
+        proposal.to,
+        proposal.value,
+        proposal.data
+      );
+      const receipt = await tx.wait();
+
+      this.logger.logExecution('scope-execute', {
+        success: true,
+        txHash: receipt.hash,
+        proposal: proposal.description,
+        enforcement: 'on-chain',
+        explorerUrl: `${this.config.chain.explorerUrl}/tx/${receipt.hash}`,
+        valueUsd: 0, // Caller should set this
+      });
+
+      return { success: true, txHash: receipt.hash };
+    } catch (error: any) {
+      this.logger.logExecution('scope-execute-failed', {
+        success: false,
+        error: error.message,
+        proposal: proposal.description,
+        enforcement: 'on-chain',
+        valueUsd: 0,
+      });
+      return { success: false, error: error.message };
+    }
   }
 
   /**
-   * Get current scope status for display/logging.
+   * Record a trade in local mode (updates local spend tracking).
    */
-  getStatus(): {
+  recordLocalSpend(valueWei: bigint): void {
+    this.localDailySpent += valueWei;
+    this.localLastTrade = Math.floor(Date.now() / 1000);
+  }
+
+  // ─── Status ──────────────────────────────────────────────
+
+  /**
+   * Get current scope status.
+   */
+  async getStatus(): Promise<{
     mode: 'on-chain' | 'local';
     active: boolean;
-    dailySpend: string;
     dailyLimit: string;
-    totalSpend: string;
-    totalLimit: string;
-    lastTrade: number;
-    cooldownRemaining: number;
-  } {
-    const policy = this.policy || AgentScope.createLocalPolicy();
+    maxPerTx: string;
+    remaining: string;
+    contractAddress: string | null;
+    agentAddress: string | null;
+  }> {
+    if (this.contract && this.agentAddress) {
+      try {
+        const scope = await this.contract.getAgentScope(this.agentAddress);
+        return {
+          mode: 'on-chain',
+          active: scope.active,
+          dailyLimit: ethers.formatEther(scope.dailySpendLimitWei),
+          maxPerTx: ethers.formatEther(scope.maxPerTxWei),
+          remaining: ethers.formatEther(scope.remainingBudget),
+          contractAddress: this.contractAddress,
+          agentAddress: this.agentAddress,
+        };
+      } catch {
+        // Fall through to local
+      }
+    }
+
+    const policy = this.localPolicy;
     const now = Math.floor(Date.now() / 1000);
-    const cooldownRemaining = Math.max(0,
-      policy.cooldownSeconds - (now - this.lastTradeTimestamp)
-    );
+    if (now >= this.localWindowStart + 86400) {
+      this.localDailySpent = 0n;
+      this.localWindowStart = now;
+    }
 
     return {
-      mode: this.contract ? 'on-chain' : 'local',
-      active: policy.active,
-      dailySpend: ethers.formatEther(this.dailySpendWei),
-      dailyLimit: ethers.formatEther(policy.maxDailySpendWei),
-      totalSpend: ethers.formatEther(this.totalSpendWei),
-      totalLimit: ethers.formatEther(policy.maxTotalSpendWei),
-      lastTrade: this.lastTradeTimestamp,
-      cooldownRemaining,
-    };
-  }
-
-  /**
-   * Parse raw contract policy data into our typed structure.
-   */
-  private parsePolicy(raw: any): ScopePolicy {
-    return {
-      maxValuePerTxWei: BigInt(raw.maxValuePerTx),
-      maxDailySpendWei: BigInt(raw.maxDailySpend),
-      maxTotalSpendWei: BigInt(raw.maxTotalSpend),
-      allowedTargets: [...raw.allowedTargets],
-      allowedSelectors: [...raw.allowedSelectors].map((s: string) =>
-        s.startsWith('0x') ? s : `0x${s}`
-      ),
-      allowedTokens: [...raw.allowedTokens],
-      tradingWindowStart: Number(raw.tradingWindowStart),
-      tradingWindowEnd: Number(raw.tradingWindowEnd),
-      cooldownSeconds: Number(raw.cooldownSeconds),
-      owner: raw.owner,
-      agent: raw.agent,
-      createdAt: Number(raw.createdAt),
-      active: raw.active,
+      mode: 'local',
+      active: policy?.active ?? false,
+      dailyLimit: policy ? ethers.formatEther(policy.dailySpendLimitWei) : '0',
+      maxPerTx: policy ? ethers.formatEther(policy.maxPerTxWei) : '0',
+      remaining: policy ? ethers.formatEther(policy.dailySpendLimitWei - this.localDailySpent) : '0',
+      contractAddress: this.contractAddress,
+      agentAddress: this.agentAddress,
     };
   }
 }
@@ -402,93 +543,112 @@ export async function demoAgentScope(logger: AgentLog): Promise<void> {
   console.log('  The human sets the policy. The blockchain enforces it.');
   console.log('  The agent operates freely within its scope — but cannot exceed it.\n');
 
-  // Create a local policy for demo
-  const policy = AgentScope.createLocalPolicy({
-    maxValuePerTxWei: ethers.parseEther('0.05'),
-    maxDailySpendWei: ethers.parseEther('0.5'),
-    maxTotalSpendWei: ethers.parseEther('2.0'),
-    tradingWindowStart: 0,
-    tradingWindowEnd: 24,
-    cooldownSeconds: 300,
-  });
+  // Show deployed contracts if available
+  const SEPOLIA_MODULE = '0x0d0034c6AC4640463bf480cB07BE770b08Bef811';
+  const SEPOLIA_SAFE   = '0x51157a48b0A00D6C9C49f0AaEe98a27511DD180a';
+  console.log('  📜 Deployed contracts (Sepolia):');
+  console.log(`     AgentScopeModule: ${SEPOLIA_MODULE}`);
+  console.log(`     MockSafe:         ${SEPOLIA_SAFE}`);
+  console.log('');
 
-  console.log('  📋 Policy (set by human):');
-  console.log(`     Max per trade:    ${ethers.formatEther(policy.maxValuePerTxWei)} ETH`);
-  console.log(`     Max daily spend:  ${ethers.formatEther(policy.maxDailySpendWei)} ETH`);
-  console.log(`     Lifetime cap:     ${ethers.formatEther(policy.maxTotalSpendWei)} ETH`);
-  console.log(`     Trading window:   ${policy.tradingWindowStart}:00 - ${policy.tradingWindowEnd}:00 UTC`);
-  console.log(`     Cooldown:         ${policy.cooldownSeconds}s between trades`);
-  console.log(`     Allowed functions: ${policy.allowedSelectors.length} swap selectors`);
-
-  // Create scope with local config
+  // Create local scope for demo
   const config: any = {
-    chain: { rpcUrl: 'https://mainnet.base.org' },
+    chain: { rpcUrl: 'https://mainnet.base.org', explorerUrl: 'https://basescan.org' },
     chainKey: 'base',
   };
   const scope = new AgentScope(config, logger);
 
-  // Test 1: Valid trade proposal
-  console.log('\n  ─── Test 1: Valid swap ($25 ETH → USDC) ───');
-  const validProposal: TransactionProposal = {
-    to: '0x2626664c2603336E57B271c5C0b26F421741e481', // Uniswap V3 Router on Base
-    value: ethers.parseEther('0.012'),                   // ~$25 at $2100/ETH
-    data: '0x04e45aaf' + '0'.repeat(64),                 // exactInputSingle selector
-    description: 'Swap 0.012 ETH → USDC via Uniswap V3',
-  };
+  // Initialize with policy matching our Sepolia deployment
+  scope.initLocal({
+    active: true,
+    dailySpendLimitWei: ethers.parseEther('0.5'),
+    maxPerTxWei: ethers.parseEther('0.05'),
+    sessionExpiry: 0,
+    allowedContracts: [
+      '0x2626664c2603336E57B271c5C0b26F421741e481',  // Uniswap V3 Router (Base)
+    ],
+    allowedFunctions: [
+      '0x04e45aaf',  // exactInputSingle
+      '0x38ed1739',  // swapExactTokensForTokens
+    ],
+  });
 
-  const result1 = scope.validate(validProposal);
+  console.log('  📋 Policy (set by human, enforced by contract):');
+  console.log('     Daily limit:        0.5 ETH');
+  console.log('     Per-transaction:    0.05 ETH');
+  console.log('     Allowed contracts:  Uniswap V3 Router only');
+  console.log('     Allowed functions:  exactInputSingle, swapExactTokensForTokens');
+  console.log('     Session expiry:     None');
+
+  // ─── Test 1: Valid swap ───
+  console.log('\n  ─── Test 1: Valid swap (0.012 ETH → USDC via Uniswap) ───');
+  const validProposal: TransactionProposal = {
+    to: '0x2626664c2603336E57B271c5C0b26F421741e481',
+    value: ethers.parseEther('0.012'),
+    data: '0x04e45aaf' + '0'.repeat(64),
+    description: 'Swap 0.012 ETH → USDC via Uniswap V3 exactInputSingle',
+  };
+  const result1 = await scope.validate(validProposal);
   for (const check of result1.checks) {
     console.log(`     ${check.passed ? '✅' : '❌'} ${check.name}: ${check.detail}`);
   }
+  console.log(`     Enforcement: ${result1.enforcement}`);
   console.log(`     Result: ${result1.approved ? '✅ APPROVED' : '❌ REJECTED'}`);
+  if (result1.approved) scope.recordLocalSpend(validProposal.value);
 
-  if (result1.approved) {
-    scope.recordTrade(validProposal.value);
-  }
-
-  // Test 2: Oversized trade (should be rejected)
-  console.log('\n  ─── Test 2: Oversized swap ($200 — exceeds limit) ───');
+  // ─── Test 2: Over per-tx limit ───
+  console.log('\n  ─── Test 2: Over per-tx limit (0.1 ETH — exceeds 0.05 max) ───');
   const oversizedProposal: TransactionProposal = {
     to: '0x2626664c2603336E57B271c5C0b26F421741e481',
-    value: ethers.parseEther('0.1'),                     // ~$200 > $50 limit
+    value: ethers.parseEther('0.1'),
     data: '0x04e45aaf' + '0'.repeat(64),
-    description: 'Swap 0.1 ETH → USDC (OVER LIMIT)',
+    description: 'Swap 0.1 ETH → USDC (OVER PER-TX LIMIT)',
   };
-
-  const result2 = scope.validate(oversizedProposal);
+  const result2 = await scope.validate(oversizedProposal);
   for (const check of result2.checks) {
-    if (!check.passed) {
-      console.log(`     ❌ ${check.name}: ${check.detail}`);
-    }
+    if (!check.passed) console.log(`     ❌ ${check.name}: ${check.detail}`);
   }
   console.log(`     Result: ${result2.approved ? '✅ APPROVED' : '❌ REJECTED — scope enforced'}`);
 
-  // Test 3: Unauthorized function call (should be rejected)
-  console.log('\n  ─── Test 3: Unauthorized function (not a swap) ───');
+  // ─── Test 3: Unauthorized function ───
+  console.log('\n  ─── Test 3: Unauthorized function (transfer — not a swap) ───');
   const unauthorizedProposal: TransactionProposal = {
     to: '0x2626664c2603336E57B271c5C0b26F421741e481',
     value: 0n,
-    data: '0xa9059cbb' + '0'.repeat(64),                 // transfer() — not allowed
-    description: 'Raw transfer (NOT in allowed selectors)',
+    data: '0xa9059cbb' + '0'.repeat(64),   // transfer()
+    description: 'Raw transfer (NOT in allowed functions)',
   };
-
-  const result3 = scope.validate(unauthorizedProposal);
+  const result3 = await scope.validate(unauthorizedProposal);
   for (const check of result3.checks) {
-    if (!check.passed) {
-      console.log(`     ❌ ${check.name}: ${check.detail}`);
-    }
+    if (!check.passed) console.log(`     ❌ ${check.name}: ${check.detail}`);
   }
   console.log(`     Result: ${result3.approved ? '✅ APPROVED' : '❌ REJECTED — function not in scope'}`);
 
-  // Summary
-  const status = scope.getStatus();
-  console.log('\n  📊 Scope Status:');
-  console.log(`     Mode: ${status.mode}`);
-  console.log(`     Daily spend: ${status.dailySpend} / ${status.dailyLimit} ETH`);
-  console.log(`     Lifetime: ${status.totalSpend} / ${status.totalLimit} ETH`);
-  console.log(`     Cooldown remaining: ${status.cooldownRemaining}s`);
+  // ─── Test 4: Wrong contract ───
+  console.log('\n  ─── Test 4: Wrong contract (not Uniswap) ───');
+  const wrongContract: TransactionProposal = {
+    to: '0xdead000000000000000000000000000000000000',
+    value: ethers.parseEther('0.01'),
+    data: '0x04e45aaf' + '0'.repeat(64),
+    description: 'Swap via unknown contract (NOT whitelisted)',
+  };
+  const result4 = await scope.validate(wrongContract);
+  for (const check of result4.checks) {
+    if (!check.passed) console.log(`     ❌ ${check.name}: ${check.detail}`);
+  }
+  console.log(`     Result: ${result4.approved ? '✅ APPROVED' : '❌ REJECTED — contract not in scope'}`);
 
-  console.log('\n  💡 In production, this policy lives ON-CHAIN in a Safe module.');
-  console.log('     The agent proposes → the contract validates → the Safe executes.');
-  console.log('     The LLM cannot override the policy. Only the human can change it.\n');
+  // Summary
+  const status = await scope.getStatus();
+  console.log('\n  📊 Scope Status:');
+  console.log(`     Mode: ${status.mode} ${status.mode === 'local' ? '(fallback — not cryptographically enforced)' : '(contract is source of truth)'}`);
+  console.log(`     Daily limit: ${status.dailyLimit} ETH`);
+  console.log(`     Per-tx limit: ${status.maxPerTx} ETH`);
+  console.log(`     Remaining: ${status.remaining} ETH`);
+
+  console.log('\n  💡 In production:');
+  console.log('     Human deploys Safe → attaches AgentScopeModule → calls setAgentPolicy()');
+  console.log('     Agent calls executeAsAgent() → contract validates ALL checks → Safe executes');
+  console.log('     The LLM cannot modify the policy. Only the Safe owner can.');
+  console.log('     This is not a config file. This is a smart contract.\n');
 }

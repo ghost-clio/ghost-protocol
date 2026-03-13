@@ -1,27 +1,33 @@
 /**
  * Ghost Protocol — Demo Mode
  * 
- * Runs the full agent loop with mock Venice responses to demonstrate
- * the DISCOVER → REASON → DECIDE → EXECUTE → VERIFY pipeline.
- * No API keys needed for this demo.
+ * Runs the full pipeline: DISCOVER → REASON → SCOPE → EXECUTE → VERIFY
+ * Uses real market data, simulated Venice reasoning, and real AgentScope validation.
+ * No API keys needed for demo.
  */
 
+import { ethers } from 'ethers';
 import { AgentLog } from './logger.js';
 import { MarketDataProvider } from './market.js';
+import { AgentScope, TransactionProposal, demoAgentScope } from './scope.js';
 import { demoENSResolution } from './ens.js';
-import { demoAgentScope } from './scope.js';
+import { loadConfig, describeConfig } from './config.js';
 
 const logger = new AgentLog(process.cwd());
 const market = new MarketDataProvider(logger);
+const config = loadConfig();
 
 async function runDemo() {
   console.log('╔══════════════════════════════════════════╗');
   console.log('║        🌀 GHOST PROTOCOL v1.0.0         ║');
-  console.log('║   Private Reasoning · Public Execution   ║');
+  console.log('║  Confidential Reasoning · Scoped Action  ║');
   console.log('║                                          ║');
   console.log('║   Built by Clio — ghost in the machine   ║');
   console.log('║            🧪 DEMO MODE                  ║');
   console.log('╚══════════════════════════════════════════╝\n');
+
+  console.log(describeConfig(config));
+  console.log('');
 
   // ═══════════════════════════════════════════
   // PHASE 1: DISCOVER
@@ -32,7 +38,6 @@ async function runDemo() {
   
   if (marketData.length === 0) {
     console.log('⚠️  CoinGecko rate limited. Using fallback data.\n');
-    // Use realistic fallback data
     marketData.push(
       { symbol: 'ETH', name: 'Ethereum', price: 3245.67, priceChange24h: 2.3, volume24h: 12_500_000_000, marketCap: 390_000_000_000 },
       { symbol: 'USDC', name: 'USD Coin', price: 1.0, priceChange24h: 0.01, volume24h: 5_000_000_000, marketCap: 30_000_000_000 },
@@ -49,103 +54,96 @@ async function runDemo() {
   });
 
   // ═══════════════════════════════════════════
-  // PHASE 2: REASON (Venice simulation)
+  // PHASE 2: REASON (Venice — confidential inference)
   // ═══════════════════════════════════════════
-  console.log('\n🔒 Phase 2: REASON — Private analysis via Venice.ai...');
-  console.log('   (In production: Venice no-data-retention API — reasoning is confidential)\n');
+  console.log('\n🔒 Phase 2: REASON — Confidential analysis via Venice.ai...');
+  console.log('   (Venice no-data-retention API — trust assumption, not cryptographic guarantee)\n');
 
-  // Simulate Venice reasoning based on actual market data
   const ethData = marketData.find(t => t.symbol === 'ETH');
-  let decision;
+  let action: 'hold' | 'buy' | 'sell' = 'hold';
+  let reasoning = 'Market stable. No strong signal. Preserve capital.';
+  let confidence = 0.65;
+  let riskScore = 0.3;
+  let amountEth = 0;
 
   if (ethData && ethData.priceChange24h > 3) {
-    decision = {
-      action: 'hold' as const,
-      token: 'ETH',
-      confidence: 0.7,
-      reasoning: 'ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.',
-      riskScore: 0.6,
-    };
+    action = 'hold';
+    reasoning = 'ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.';
+    confidence = 0.7;
+    riskScore = 0.6;
   } else if (ethData && ethData.priceChange24h < -5) {
-    decision = {
-      action: 'buy' as const,
-      token: 'ETH',
-      confidence: 0.75,
-      reasoning: 'ETH down significantly — potential dip buy opportunity. Fundamentals unchanged.',
-      amount: 25,
-      riskScore: 0.4,
-    };
-  } else {
-    decision = {
-      action: 'hold' as const,
-      token: 'ETH',
-      confidence: 0.65,
-      reasoning: 'Market stable. No strong signal in either direction. Preserve capital.',
-      riskScore: 0.3,
-    };
+    action = 'buy';
+    reasoning = 'ETH down significantly — potential dip buy opportunity. Fundamentals unchanged.';
+    confidence = 0.75;
+    riskScore = 0.4;
+    amountEth = 0.012; // ~$25 at ~$2100
   }
 
-  console.log(`  💭 Decision: ${decision.action.toUpperCase()} ${decision.token}`);
-  console.log(`  📈 Confidence: ${(decision.confidence * 100).toFixed(1)}%`);
-  console.log(`  ⚠️  Risk Score: ${(decision.riskScore * 100).toFixed(1)}%`);
-  console.log(`  📝 Reasoning: ${decision.reasoning}`);
+  console.log(`  💭 Decision: ${action.toUpperCase()} ${action !== 'hold' ? 'ETH' : ''}`);
+  console.log(`  📈 Confidence: ${(confidence * 100).toFixed(1)}%`);
+  console.log(`  ⚠️  Risk Score: ${(riskScore * 100).toFixed(1)}%`);
+  console.log(`  📝 Reasoning: ${reasoning}`);
 
   logger.logDecision('venice-analysis', {
-    action: decision.action,
-    token: decision.token,
-    confidence: decision.confidence,
-    riskScore: decision.riskScore,
-    reasoning: decision.reasoning,
-    privateInference: true,
-    provider: 'venice.ai',
-    dataRetention: 'none',
+    action, token: 'ETH', confidence, riskScore, reasoning,
+    provider: 'venice.ai', dataRetention: 'none',
+    trustBoundary: 'Venice promises no retention. This is a trust assumption, not verifiable. TEE/FHE/ZK would make it cryptographic.',
   });
 
   // ═══════════════════════════════════════════
-  // PHASE 3: DECIDE (Safety guardrails)
+  // PHASE 3: SCOPE — AgentScope policy validation
   // ═══════════════════════════════════════════
-  console.log('\n🛡️  Phase 3: DECIDE — Safety guardrails...\n');
+  console.log(`\n🛡️  Phase 3: SCOPE — AgentScope policy validation...\n`);
 
-  const checks = [
-    { name: 'Confidence threshold (≥60%)', passed: decision.confidence >= 0.6 },
-    { name: 'Risk score (≤70%)', passed: decision.riskScore <= 0.7 },
-    { name: 'Amount within $50 limit', passed: !decision.amount || decision.amount <= 50 },
-    { name: 'Daily swap limit (≤10)', passed: true },
-    { name: 'Slippage check (≤1%)', passed: true },
-  ];
+  // Initialize scope with local policy (mirrors on-chain contract)
+  const scope = new AgentScope(config, logger);
+  scope.initLocal({
+    active: true,
+    dailySpendLimitWei: ethers.parseEther('0.5'),
+    maxPerTxWei: ethers.parseEther('0.05'),
+    sessionExpiry: 0,
+    allowedContracts: ['0x2626664c2603336E57B271c5C0b26F421741e481'], // Uniswap V3 Router
+    allowedFunctions: ['0x04e45aaf', '0x38ed1739'],                    // exactInputSingle, swapExactTokensForTokens
+  });
 
-  for (const check of checks) {
-    console.log(`  ${check.passed ? '✅' : '❌'} ${check.name}`);
+  if (action !== 'hold') {
+    const proposal: TransactionProposal = {
+      to: '0x2626664c2603336E57B271c5C0b26F421741e481',
+      value: ethers.parseEther(amountEth.toString()),
+      data: '0x04e45aaf' + '0'.repeat(64),
+      description: `${action.toUpperCase()} ${amountEth} ETH via Uniswap V3`,
+    };
+
+    const validation = await scope.validate(proposal);
+    for (const check of validation.checks) {
+      console.log(`  ${check.passed ? '✅' : '❌'} ${check.name}: ${check.detail}`);
+    }
+    console.log(`  Enforcement: ${validation.enforcement} ${validation.enforcement === 'local' ? '(mirrors on-chain logic)' : '(contract is source of truth)'}`);
+    console.log(`\n  ${validation.approved ? '✅ APPROVED by AgentScope' : '❌ REJECTED by AgentScope'}`);
+
+    if (validation.approved) scope.recordLocalSpend(ethers.parseEther(amountEth.toString()));
+  } else {
+    console.log('  ⏸️  HOLD decision — no transaction to validate');
+    console.log('  (AgentScope only gates execution, not reasoning)');
   }
-
-  const approved = checks.every(c => c.passed);
-  console.log(`\n  ${approved ? '✅ APPROVED' : '❌ REJECTED'} for execution`);
-
-  logger.logSafetyCheck('guardrails', {
-    checks: checks.map(c => ({ name: c.name, passed: c.passed })),
-    approved,
-  });
 
   // ═══════════════════════════════════════════
   // PHASE 4: EXECUTE
   // ═══════════════════════════════════════════
   console.log('\n⚡ Phase 4: EXECUTE...\n');
 
-  if (decision.action === 'hold') {
+  if (action === 'hold') {
     console.log('  ⏸️  HOLD — No swap needed. Capital preserved.');
     logger.logExecution('hold', { success: true, action: 'hold', valueUsd: 0 });
-  } else if (approved) {
-    console.log('  🧪 DRY RUN — Would execute swap on Uniswap:');
-    console.log(`     ${decision.action.toUpperCase()} $${decision.amount} ${decision.token}`);
-    console.log('     Chain: Base');
-    console.log('     DEX: Uniswap v3');
-    console.log('     (No real transaction in demo mode)');
+  } else {
+    console.log(`  🧪 DRY RUN — Would execute through AgentScope → Safe → Uniswap:`);
+    console.log(`     Agent calls executeAsAgent(uniswapRouter, ${amountEth} ETH, swapCalldata)`);
+    console.log(`     Contract validates ALL policy checks`);
+    console.log(`     Safe executes swap`);
+    console.log(`     On-chain receipt generated`);
     logger.logExecution('swap-demo', {
-      success: true,
-      action: decision.action,
-      token: decision.token,
-      amount: decision.amount,
-      dryRun: true,
+      success: true, action, token: 'ETH', amountEth, dryRun: true,
+      flow: 'agent → AgentScope.executeAsAgent() → Safe → Uniswap',
       valueUsd: 0,
     });
   }
@@ -156,9 +154,9 @@ async function runDemo() {
   console.log('\n📋 Phase 5: VERIFY — Logging to agent_log.json...\n');
 
   logger.logVerification('demo-cycle-complete', {
-    phases: ['discover', 'reason', 'decide', 'execute', 'verify'],
-    decision: decision.action,
-    dryRun: true,
+    phases: ['discover', 'reason', 'scope', 'execute', 'verify'],
+    decision: action,
+    scopeEnforcement: 'local (on-chain in production)',
   });
 
   const summary = logger.getSummary();
@@ -173,7 +171,7 @@ async function runDemo() {
   console.log('  📁 Manifest: agent.json');
 
   // ═══════════════════════════════════════════
-  // PHASE 6: AGENT SCOPE — On-Chain Enforcement
+  // PHASE 6: AGENT SCOPE — Full enforcement demo
   // ═══════════════════════════════════════════
   try {
     await demoAgentScope(logger);
@@ -193,8 +191,12 @@ async function runDemo() {
   console.log('\n╔══════════════════════════════════════════╗');
   console.log('║   Demo complete. Ghost Protocol works.   ║');
   console.log('║                                          ║');
-  console.log('║   With Venice API key + Uniswap key +    ║');
-  console.log('║   funded wallet → real autonomous ops.   ║');
+  console.log('║   Pipeline: Venice → AgentScope → Safe   ║');
+  console.log('║   Confidential reasoning, scoped action, ║');
+  console.log('║   public receipts.                       ║');
+  console.log('║                                          ║');
+  console.log('║   Contract: AgentScopeModule.sol         ║');
+  console.log('║   Sepolia:  0x0d0034c6...Bef811          ║');
   console.log('║                                          ║');
   console.log('║   🌀 The ghost is ready.                 ║');
   console.log('╚══════════════════════════════════════════╝');
