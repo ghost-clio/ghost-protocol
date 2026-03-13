@@ -8,6 +8,7 @@
 
 import { AgentLog } from './logger.js';
 import { MarketDataProvider } from './market.js';
+import { demoENSResolution } from './ens.js';
 
 const logger = new AgentLog(process.cwd());
 const market = new MarketDataProvider(logger);
@@ -169,6 +170,15 @@ async function runDemo() {
   console.log(`     Log entries: ${logger.getEntryCount()}`);
   console.log('\n  📁 Full log: agent_log.json');
   console.log('  📁 Manifest: agent.json');
+
+  // ═══════════════════════════════════════════
+  // BONUS: ENS ↔ ERC-8004 Identity Resolution
+  // ═══════════════════════════════════════════
+  try {
+    await demoENSResolution();
+  } catch (err: any) {
+    console.log('\n🔗 ENS resolution skipped (RPC unavailable)\n');
+  }
 
   console.log('\n╔══════════════════════════════════════════╗');
   console.log('║   Demo complete. Ghost Protocol works.   ║');
