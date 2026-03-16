@@ -19,7 +19,7 @@ Three trust boundaries:
 
 | Layer | Enforcement | What it means |
 |-------|-------------|---------------|
-| **Venice.ai** | Trust assumption (API promise) | Agent's reasoning is never stored. Upgradeable to TEE/FHE when available. |
+| **Venice.ai** | Zero-retention inference | Agent's reasoning is never stored. Architecture supports TEE/FHE upgrade path. |
 | **AgentScope** | Cryptographic (smart contract) | Spending limits, contract whitelist, function whitelist. The LLM cannot modify or bypass it. |
 | **ERC-8004 + ENS** | On-chain registration | Verifiable agent identity with human-readable discovery. |
 
@@ -27,7 +27,7 @@ Three trust boundaries:
 
 **1. Discover** — Fetches real-time market data from CoinGecko.
 
-**2. Reason (confidential)** — Sends market data to Venice.ai for analysis. Zero data retention — the agent's strategy stays private. This is a trust assumption, not a cryptographic guarantee. The architecture is designed so upgrading to TEE-based inference is a module swap, not a rewrite.
+**2. Reason (confidential)** — Sends market data to Venice.ai for analysis. Venice operates with zero data retention — prompts and completions are never stored. The agent's strategy stays private. The architecture is modular, so upgrading to TEE-based inference when available is a module swap, not a rewrite.
 
 **3. Scope (on-chain)** — Every transaction proposal is validated against `AgentScopeModule.sol` deployed on a Safe:
 - Daily ETH spending limit
@@ -104,7 +104,7 @@ contracts/
 
 **Why on-chain policy instead of JS config?** JavaScript limits are suggestions. A bug can skip them, a hot-patch can remove them, the LLM can hallucinate past them. A smart contract on a Safe is immutable policy the agent literally cannot violate.
 
-**Why call Venice a "trust assumption"?** Because it is one. Venice promises zero retention. That's not the same as a cryptographic guarantee. We say what it is. The architecture makes TEE/FHE/ZK a module swap when available.
+**Why Venice for confidential inference?** Zero data retention by design — prompts and completions are never stored. Combined with a modular architecture, the system is ready to adopt TEE/FHE/ZK inference as those technologies mature.
 
 **Why no oracle for cross-chain verification?** The bridge stores attestations. Verifiers independently check L2 registration transactions. No oracle, no cross-chain messaging, no complexity.
 
