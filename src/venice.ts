@@ -260,6 +260,10 @@ Analyze and provide your trading decision.`;
   }
 
   getCallCount(): number {
+    if (Date.now() > this.windowStart + 3600_000) {
+      this.callCount = 0;
+      this.windowStart = Date.now();
+    }
     return this.callCount;
   }
 
