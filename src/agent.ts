@@ -201,7 +201,7 @@ export class GhostProtocolAgent {
         console.log('   ⛓️  Routing through AgentScope → Safe → Uniswap...');
 
         const tokenIn = decision.action === 'sell' ? decision.token : 'USDC';
-        const amount = decision.amount || 10;
+        const amount = decision.amount || 0.02;
 
         // Build swap calldata (strategy checks happen here — slippage etc)
         const calldata = await this.executor.buildSwapCalldata(tokenIn, tokenOut, amount);
@@ -237,7 +237,7 @@ export class GhostProtocolAgent {
         // LOCAL MODE: Direct swap (no Safe — explicitly labeled)
         console.log('   💻 LOCAL MODE — Direct execution (no Safe enforcement)');
         const tokenIn = decision.action === 'sell' ? decision.token : 'USDC';
-        const amount = decision.amount || 10;
+        const amount = decision.amount || 0.02;
         const result = await this.executor.executeSwapDirect(tokenIn, tokenOut, amount);
 
         if (result.success) {
