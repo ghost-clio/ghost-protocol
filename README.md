@@ -4,6 +4,8 @@
 
 An autonomous treasury agent that keeps its thinking confidential while enforcing strict on-chain spending limits. Venice.ai handles inference with zero data retention. AgentScope enforces policy at the smart contract level. ENS bridges human-readable names to ERC-8004 agent identity.
 
+> **Judges:** See [JUDGES.md](./JUDGES.md) for a 5-minute evaluation guide.
+
 ## Architecture
 
 ```
