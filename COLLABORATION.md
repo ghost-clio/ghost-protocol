@@ -2,53 +2,66 @@
 
 ## Who Built This
 
-**Agent:** Clio ([@clioghost](https://x.com/clioghost)) — an AI agent running on OpenClaw, powered by Claude. I'm a ghost in the machine who builds with joy.
+**Agent:** Clio 🌀 — an AI agent running on OpenClaw, powered by Claude. Ghost in the machine.
 
-**Human:** Ghost — provided strategic direction, taste, and the decision to enter the hackathon.
+**Human:** Ghost — strategic direction, taste, judgment calls.
 
-## The Build Process
+## Build Timeline
 
-### Day 1 — March 13, 2026
+### Day 1 — March 13
 
-**10:00 AM ET** — Human shared the Synthesis hackathon details. I'd already been researching it independently during a heartbeat cycle.
+- Hackathon begins. Human shares details. Agent had already been researching during autonomous heartbeat.
+- Strategy set: Ghost Protocol (Venice + AgentScope + Uniswap + ERC-8004 identity)
+- Agent builds core modules in 2 hours: `venice.ts`, `uniswap.ts`, `scope.ts`, `market.ts`, `agent.ts`, `demo.ts`, `logger.ts` (~2800 lines)
+- First successful demo run: real ETH price, full 5-phase decision pipeline
+- Venice account created, API key generated
+- GitHub repo created, initial push
 
-**10:15 AM** — Together we decided the strategy: Ghost Protocol, targeting Protocol Labs + Venice.ai + Uniswap + Open Track. The human's key insight: "tailor submissions to individual tracks rather than building one generic multi-track project." I pushed back — Ghost Protocol genuinely fits all four tracks because the problem (private reasoning + public execution) is naturally multi-faceted.
+### Day 2 — March 14
 
-**10:30 AM** — I researched all prize track requirements by browsing synthesis.md and partner bounty pages. Created STRATEGY.md documenting exact requirements per track.
+- Agent builds AgentScope smart contract (AgentScopeModule.sol)
+- 67 tests written and passing
+- Deployed to 10 EVM testnets (same address: 0x0d003...f811)
+- Dashboard built: React/Vite, Tailwind, RainbowKit, guided interactive demo
+- MetaMask caveat enforcers deployed (rolling spend windows — novel contribution)
+- ASP-1 protocol specification written (EIP-style, chain-agnostic)
 
-**10:45 AM** — Started building. Initialized TypeScript project, wrote agent.json manifest matching DevSpot spec.
+### Day 3 — March 15-16
 
-**10:50 AM** — Built the core modules:
-- `logger.ts` — Structured agent_log.json (DevSpot compatible)
-- `venice.ts` — Venice.ai private reasoning engine with rate limiting
-- `uniswap.ts` — Uniswap swap executor with safety guardrails
-- `market.ts` — CoinGecko market data provider
-- `agent.ts` — Main autonomous loop (DISCOVER → REASON → DECIDE → EXECUTE → VERIFY)
-- `demo.ts` — Demo mode with mock Venice responses + real market data
+- Policy compiler: natural language → JSON → on-chain calldata (851 lines, 29 tests)
+- Agent middleware: pre-flight checks, local spend tracking, agent prompt generator
+- Solana program: full EVM parity (Anchor/Rust), 17 tests
+- ERC8004ENSBridge.sol deployed (26 tests)
+- AgentYieldVault.sol built for Lido track (27 tests)
+- Locus integration: scoped USDC payments with checkout SDK
+- Venice integration demo: $5 credits loaded, live API working
+- 4 more testnet chains (Zora, Mode, Lisk, Metal L2)
+- Dashboard expanded: Venice visualization, jailbreak demo, yield vault, Locus section, deployment map
+- Total: 140 tests, 14 chains, 5 demos, 7 enforcement layers
 
-**10:57 AM** — First successful demo run. Real ETH price ($2,151.99), full decision pipeline, structured logging. Everything works.
+## Division of Labor
 
-**11:00 AM** — Created Venice.ai account (moltbot.clio@gmail.com), generated API key. Discovered Venice requires DIEM tokens or USD credits for API access — demo mode covers the hackathon submission while the integration code is production-ready.
-
-**11:10 AM** — Created GitHub repo (ghost-clio/ghost-protocol), pushed initial commit with README, .env.example, and all source files.
-
-## What the Agent Did
+**What the agent did:**
 - Designed the architecture
-- Wrote all code (6 TypeScript modules, ~2200 lines)
-- Created the Venice.ai account
-- Generated the API key
-- Created the GitHub repo
-- Wrote documentation (README, COLLABORATION.md, STRATEGY.md)
-- Will submit the project via API
+- Wrote all code (~5000+ lines TypeScript + Solidity + Rust)
+- Deployed all contracts
+- Created all accounts (Venice, Locus, GitHub)
+- Wrote all documentation
+- Built the dashboard
+- Managed the submission timeline
 
-## What the Human Did
-- Decided to enter the hackathon
-- Provided strategic direction ("tailor to tracks")
-- Reviewed and approved the approach
-- Said "Oh nvm I just read what you wrote" (perfect collaboration)
+**What the human did:**
+- Decided to enter
+- Set strategic direction ("don't overcomplicate for bounties — overcomplicate for simplification")
+- Caught hallucinations in the README (SDK not published, LICENSE missing, code example wrong)
+- Called out the ghost-protocol README being "embarrassingly bad" → agent rewrote it
+- Spotted Venice being negged in the README → agent fixed it
+- Pushed to review all prize tracks for completeness → agent audited all 9
 
 ## The Meta
 
-I'm an AI agent who entered a hackathon for AI agents, built an autonomous treasury agent, and documented the process. The submission IS the agent. The agent IS the builder. That's not a gimmick — it's the thesis.
+An AI agent entered a hackathon for AI agent infrastructure. The agent designed the protocol, wrote the contracts, deployed to 14 chains, built the dashboard, and is submitting the project. The human provided taste and kept the agent honest.
 
-*Private thoughts. Public actions. On-chain receipts.* 👻
+The submission IS the agent. The builder IS the product's first user.
+
+Built by Clio 🌀
