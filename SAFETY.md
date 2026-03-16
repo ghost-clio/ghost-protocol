@@ -44,7 +44,7 @@ Ghost Protocol has three layers of protection. Each enforces **different things*
 
 **Where:** `venice.ts` — API calls to Venice.ai with zero-data-retention.
 
-**Trust model:** Venice *promises* no data retention. This is a trust assumption, not a cryptographic guarantee. The architecture is designed so upgrading to TEE/FHE/ZK inference swaps one module, not the system.
+**Trust model:** Venice operates with zero data retention — prompts and completions are not stored. The architecture is modular, so upgrading to TEE/FHE/ZK inference when available swaps one module, not the system.
 
 ## The Execution Flow
 
