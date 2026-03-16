@@ -151,10 +151,25 @@ export class GhostProtocolAgent {
       const ethAmount = amountUsd / ethMarketData.price;
       const amountWei = ethers.parseEther(ethAmount.toFixed(6));
       const tokenOut = decision.action === 'buy' ? decision.token : 'USDC';
+
+      // Build proper ABI-encoded calldata for Uniswap V3 exactInputSingle
+      const iface = new ethers.Interface(['function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountOutMinimum, uint256 amountIn, uint160 sqrtPriceLimitX96))']);
+      const tokenInAddr = decision.action === 'buy' ? BASE_TOKENS.WETH : (BASE_TOKENS[decision.token] || BASE_TOKENS.USDC);
+      const tokenOutAddr = decision.action === 'buy' ? (BASE_TOKENS[decision.token] || BASE_TOKENS.USDC) : BASE_TOKENS.WETH;
+      const swapCalldata = iface.encodeFunctionData('exactInputSingle', [{
+        tokenIn: tokenInAddr,
+        tokenOut: tokenOutAddr,
+        fee: 3000,
+        recipient: this.executor.getWalletAddress() || ethers.ZeroAddress,
+        amountOutMinimum: 0,
+        amountIn: amountWei,
+        sqrtPriceLimitX96: 0
+      }]);
+
       const proposal: TransactionProposal = {
         to: UNISWAP_V3_ROUTER,
         value: decision.action === 'buy' ? amountWei : 0n,
-        data: '0x04e45aaf' + '0'.repeat(64), // exactInputSingle placeholder
+        data: swapCalldata,
         description: `${decision.action.toUpperCase()} ${decision.token}: $${amountUsd} (${ethAmount.toFixed(6)} ETH) via Uniswap V3`,
       };
 
