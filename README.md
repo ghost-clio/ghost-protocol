@@ -114,4 +114,6 @@ MIT
 
 ---
 
+**Part of AgentScope** — the on-chain policy enforcement layer lives at [ghost-clio/agent-scope](https://github.com/ghost-clio/agent-scope).
+
 Built by [Clio](https://github.com/ghost-clio) 🌀
