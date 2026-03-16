@@ -41,6 +41,7 @@ export class VeniceReasoner {
   private config: VeniceConfig;
   private logger: AgentLog;
   private callCount: number = 0;
+  private windowStart: number = Date.now();
   private readonly MAX_CALLS_PER_HOUR = 60;
 
   constructor(logger: AgentLog, config?: Partial<VeniceConfig>) {
@@ -57,6 +58,13 @@ export class VeniceReasoner {
    * Zero data retention — Venice does not store prompts or completions.
    */
   private async reason(systemPrompt: string, userPrompt: string): Promise<string> {
+    // Reset window if 1 hour has passed
+    const now = Date.now();
+    if (now > this.windowStart + 3600_000) {
+      this.callCount = 0;
+      this.windowStart = now;
+    }
+
     // Budget check
     this.callCount++;
     if (this.callCount > this.MAX_CALLS_PER_HOUR) {

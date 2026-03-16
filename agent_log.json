@@ -6,13 +6,13 @@
     "startedAt": "2026-03-13T14:57:37.348Z"
   },
   "summary": {
-    "totalDecisions": 28,
-    "totalToolCalls": 9,
+    "totalDecisions": 60,
+    "totalToolCalls": 17,
     "totalErrors": 0,
-    "totalTradesExecuted": 9,
+    "totalTradesExecuted": 17,
     "totalTradesRejected": 0,
     "totalValueMovedUsd": 0,
-    "uptimeMs": 238412755,
+    "uptimeMs": 245897801,
     "computeBudget": {
       "totalTokensUsed": 312000,
       "totalApiCalls": 24,
@@ -1905,6 +1905,2158 @@
     },
     {
       "timestamp": "2026-03-16T09:11:10.103Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": false
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0xdead000000000000000000000000000000000000",
+          "value": "0.01",
+          "selector": "0x04e45aaf",
+          "description": "Swap via unknown contract (NOT whitelisted)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.535Z",
+      "type": "tool_call",
+      "action": "market-data-fetch",
+      "data": {
+        "tokens": [
+          "ETH",
+          "USDC",
+          "DAI"
+        ],
+        "count": 3,
+        "source": "coingecko"
+      },
+      "durationMs": 1059
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.538Z",
+      "type": "decision",
+      "action": "discover-complete",
+      "data": {
+        "tokens": [
+          {
+            "symbol": "ETH",
+            "price": 2265.85
+          },
+          {
+            "symbol": "USDC",
+            "price": 0.999971
+          },
+          {
+            "symbol": "DAI",
+            "price": 0.999944
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.538Z",
+      "type": "decision",
+      "action": "venice-analysis",
+      "data": {
+        "action": "hold",
+        "token": "ETH",
+        "confidence": 0.7,
+        "riskScore": 0.6,
+        "reasoning": "ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.",
+        "provider": "venice.ai",
+        "dataRetention": "none",
+        "trustBoundary": "Venice promises no retention. This is a trust assumption, not verifiable. TEE/FHE/ZK would make it cryptographic."
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.540Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.541Z",
+      "type": "execution",
+      "action": "hold",
+      "data": {
+        "success": true,
+        "action": "hold",
+        "valueUsd": 0
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.541Z",
+      "type": "verification",
+      "action": "demo-cycle-complete",
+      "data": {
+        "phases": [
+          "discover",
+          "reason",
+          "scope",
+          "execute",
+          "verify"
+        ],
+        "decision": "hold",
+        "scopeEnforcement": "local (on-chain in production)"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.543Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.544Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": true,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.012",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.012 ETH → USDC via Uniswap V3 exactInputSingle"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.544Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": false
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.1",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.1 ETH → USDC (OVER PER-TX LIMIT)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.545Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": false
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.0",
+          "selector": "0xa9059cbb",
+          "description": "Raw transfer (NOT in allowed functions)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:09:12.545Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": false
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0xdead000000000000000000000000000000000000",
+          "value": "0.01",
+          "selector": "0x04e45aaf",
+          "description": "Swap via unknown contract (NOT whitelisted)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.401Z",
+      "type": "tool_call",
+      "action": "market-data-fetch",
+      "data": {
+        "tokens": [
+          "ETH",
+          "USDC",
+          "DAI"
+        ],
+        "count": 3,
+        "source": "coingecko"
+      },
+      "durationMs": 737
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.405Z",
+      "type": "decision",
+      "action": "discover-complete",
+      "data": {
+        "tokens": [
+          {
+            "symbol": "ETH",
+            "price": 2266.84
+          },
+          {
+            "symbol": "USDC",
+            "price": 0.999998
+          },
+          {
+            "symbol": "DAI",
+            "price": 0.999976
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.405Z",
+      "type": "decision",
+      "action": "venice-analysis",
+      "data": {
+        "action": "hold",
+        "token": "ETH",
+        "confidence": 0.7,
+        "riskScore": 0.6,
+        "reasoning": "ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.",
+        "provider": "venice.ai",
+        "dataRetention": "none",
+        "trustBoundary": "Venice promises no retention. This is a trust assumption, not verifiable. TEE/FHE/ZK would make it cryptographic."
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.406Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.407Z",
+      "type": "execution",
+      "action": "hold",
+      "data": {
+        "success": true,
+        "action": "hold",
+        "valueUsd": 0
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.407Z",
+      "type": "verification",
+      "action": "demo-cycle-complete",
+      "data": {
+        "phases": [
+          "discover",
+          "reason",
+          "scope",
+          "execute",
+          "verify"
+        ],
+        "decision": "hold",
+        "scopeEnforcement": "local (on-chain in production)"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.408Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.409Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": true,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.012",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.012 ETH → USDC via Uniswap V3 exactInputSingle"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.409Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": false
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.1",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.1 ETH → USDC (OVER PER-TX LIMIT)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.410Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": false
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.0",
+          "selector": "0xa9059cbb",
+          "description": "Raw transfer (NOT in allowed functions)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:13:20.410Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": false
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0xdead000000000000000000000000000000000000",
+          "value": "0.01",
+          "selector": "0x04e45aaf",
+          "description": "Swap via unknown contract (NOT whitelisted)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.066Z",
+      "type": "tool_call",
+      "action": "market-data-fetch",
+      "data": {
+        "tokens": [
+          "ETH",
+          "USDC",
+          "DAI"
+        ],
+        "count": 3,
+        "source": "coingecko"
+      },
+      "durationMs": 781
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.068Z",
+      "type": "decision",
+      "action": "discover-complete",
+      "data": {
+        "tokens": [
+          {
+            "symbol": "ETH",
+            "price": 2267.81
+          },
+          {
+            "symbol": "USDC",
+            "price": 1
+          },
+          {
+            "symbol": "DAI",
+            "price": 0.999895
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.068Z",
+      "type": "decision",
+      "action": "venice-analysis",
+      "data": {
+        "action": "hold",
+        "token": "ETH",
+        "confidence": 0.7,
+        "riskScore": 0.6,
+        "reasoning": "ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.",
+        "provider": "venice.ai",
+        "dataRetention": "none",
+        "trustBoundary": "Venice promises no retention. This is a trust assumption, not verifiable. TEE/FHE/ZK would make it cryptographic."
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.070Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.070Z",
+      "type": "execution",
+      "action": "hold",
+      "data": {
+        "success": true,
+        "action": "hold",
+        "valueUsd": 0
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.071Z",
+      "type": "verification",
+      "action": "demo-cycle-complete",
+      "data": {
+        "phases": [
+          "discover",
+          "reason",
+          "scope",
+          "execute",
+          "verify"
+        ],
+        "decision": "hold",
+        "scopeEnforcement": "local (on-chain in production)"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.072Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.073Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": true,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.012",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.012 ETH → USDC via Uniswap V3 exactInputSingle"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.074Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": false
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.1",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.1 ETH → USDC (OVER PER-TX LIMIT)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.074Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": false
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.0",
+          "selector": "0xa9059cbb",
+          "description": "Raw transfer (NOT in allowed functions)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:27:29.075Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": false
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0xdead000000000000000000000000000000000000",
+          "value": "0.01",
+          "selector": "0x04e45aaf",
+          "description": "Swap via unknown contract (NOT whitelisted)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.851Z",
+      "type": "tool_call",
+      "action": "market-data-fetch",
+      "data": {
+        "tokens": [
+          "ETH",
+          "USDC",
+          "DAI"
+        ],
+        "count": 3,
+        "source": "coingecko"
+      },
+      "durationMs": 890
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.854Z",
+      "type": "decision",
+      "action": "discover-complete",
+      "data": {
+        "tokens": [
+          {
+            "symbol": "ETH",
+            "price": 2257.87
+          },
+          {
+            "symbol": "USDC",
+            "price": 0.999999
+          },
+          {
+            "symbol": "DAI",
+            "price": 0.999956
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.855Z",
+      "type": "decision",
+      "action": "venice-analysis",
+      "data": {
+        "action": "hold",
+        "token": "ETH",
+        "confidence": 0.7,
+        "riskScore": 0.6,
+        "reasoning": "ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.",
+        "provider": "venice.ai",
+        "dataRetention": "none",
+        "trustBoundary": "Venice promises no retention. This is a trust assumption, not verifiable. TEE/FHE/ZK would make it cryptographic."
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.857Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.858Z",
+      "type": "execution",
+      "action": "hold",
+      "data": {
+        "success": true,
+        "action": "hold",
+        "valueUsd": 0
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.859Z",
+      "type": "verification",
+      "action": "demo-cycle-complete",
+      "data": {
+        "phases": [
+          "discover",
+          "reason",
+          "scope",
+          "execute",
+          "verify"
+        ],
+        "decision": "hold",
+        "scopeEnforcement": "local (on-chain in production)"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.861Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.862Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": true,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.012",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.012 ETH → USDC via Uniswap V3 exactInputSingle"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.863Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": false
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.1",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.1 ETH → USDC (OVER PER-TX LIMIT)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.863Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": false
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.0",
+          "selector": "0xa9059cbb",
+          "description": "Raw transfer (NOT in allowed functions)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:41:04.864Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": false
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0xdead000000000000000000000000000000000000",
+          "value": "0.01",
+          "selector": "0x04e45aaf",
+          "description": "Swap via unknown contract (NOT whitelisted)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.585Z",
+      "type": "tool_call",
+      "action": "market-data-fetch",
+      "data": {
+        "tokens": [
+          "ETH",
+          "USDC",
+          "DAI"
+        ],
+        "count": 3,
+        "source": "coingecko"
+      },
+      "durationMs": 917
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.586Z",
+      "type": "decision",
+      "action": "discover-complete",
+      "data": {
+        "tokens": [
+          {
+            "symbol": "ETH",
+            "price": 2258.56
+          },
+          {
+            "symbol": "USDC",
+            "price": 0.999996
+          },
+          {
+            "symbol": "DAI",
+            "price": 1
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.587Z",
+      "type": "decision",
+      "action": "venice-analysis",
+      "data": {
+        "action": "hold",
+        "token": "ETH",
+        "confidence": 0.7,
+        "riskScore": 0.6,
+        "reasoning": "ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.",
+        "provider": "venice.ai",
+        "dataRetention": "none",
+        "trustBoundary": "Venice promises no retention. This is a trust assumption, not verifiable. TEE/FHE/ZK would make it cryptographic."
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.588Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.589Z",
+      "type": "execution",
+      "action": "hold",
+      "data": {
+        "success": true,
+        "action": "hold",
+        "valueUsd": 0
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.589Z",
+      "type": "verification",
+      "action": "demo-cycle-complete",
+      "data": {
+        "phases": [
+          "discover",
+          "reason",
+          "scope",
+          "execute",
+          "verify"
+        ],
+        "decision": "hold",
+        "scopeEnforcement": "local (on-chain in production)"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.590Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.591Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": true,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.012",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.012 ETH → USDC via Uniswap V3 exactInputSingle"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.591Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": false
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.1",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.1 ETH → USDC (OVER PER-TX LIMIT)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.592Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": false
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.0",
+          "selector": "0xa9059cbb",
+          "description": "Raw transfer (NOT in allowed functions)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:42:58.592Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": false
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0xdead000000000000000000000000000000000000",
+          "value": "0.01",
+          "selector": "0x04e45aaf",
+          "description": "Swap via unknown contract (NOT whitelisted)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.625Z",
+      "type": "tool_call",
+      "action": "market-data-fetch",
+      "data": {
+        "tokens": [
+          "ETH",
+          "USDC",
+          "DAI"
+        ],
+        "count": 3,
+        "source": "coingecko"
+      },
+      "durationMs": 654
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.626Z",
+      "type": "decision",
+      "action": "discover-complete",
+      "data": {
+        "tokens": [
+          {
+            "symbol": "ETH",
+            "price": 2258.56
+          },
+          {
+            "symbol": "USDC",
+            "price": 0.999996
+          },
+          {
+            "symbol": "DAI",
+            "price": 1
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.628Z",
+      "type": "decision",
+      "action": "venice-analysis",
+      "data": {
+        "action": "hold",
+        "token": "ETH",
+        "confidence": 0.7,
+        "riskScore": 0.6,
+        "reasoning": "ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.",
+        "provider": "venice.ai",
+        "dataRetention": "none",
+        "trustBoundary": "Venice promises no retention. This is a trust assumption, not verifiable. TEE/FHE/ZK would make it cryptographic."
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.629Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.630Z",
+      "type": "execution",
+      "action": "hold",
+      "data": {
+        "success": true,
+        "action": "hold",
+        "valueUsd": 0
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.631Z",
+      "type": "verification",
+      "action": "demo-cycle-complete",
+      "data": {
+        "phases": [
+          "discover",
+          "reason",
+          "scope",
+          "execute",
+          "verify"
+        ],
+        "decision": "hold",
+        "scopeEnforcement": "local (on-chain in production)"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.632Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.633Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": true,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.012",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.012 ETH → USDC via Uniswap V3 exactInputSingle"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.634Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": false
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.1",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.1 ETH → USDC (OVER PER-TX LIMIT)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.634Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": false
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.0",
+          "selector": "0xa9059cbb",
+          "description": "Raw transfer (NOT in allowed functions)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T10:43:31.635Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": false
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0xdead000000000000000000000000000000000000",
+          "value": "0.01",
+          "selector": "0x04e45aaf",
+          "description": "Swap via unknown contract (NOT whitelisted)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.776Z",
+      "type": "tool_call",
+      "action": "market-data-fetch",
+      "data": {
+        "tokens": [
+          "ETH",
+          "USDC",
+          "DAI"
+        ],
+        "count": 3,
+        "source": "coingecko"
+      },
+      "durationMs": 858
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.777Z",
+      "type": "decision",
+      "action": "discover-complete",
+      "data": {
+        "tokens": [
+          {
+            "symbol": "ETH",
+            "price": 2275.05
+          },
+          {
+            "symbol": "USDC",
+            "price": 1
+          },
+          {
+            "symbol": "DAI",
+            "price": 0.999908
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.778Z",
+      "type": "decision",
+      "action": "venice-analysis",
+      "data": {
+        "action": "hold",
+        "token": "ETH",
+        "confidence": 0.7,
+        "riskScore": 0.6,
+        "reasoning": "ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.",
+        "provider": "venice.ai",
+        "dataRetention": "none",
+        "trustBoundary": "Venice promises no retention. This is a trust assumption, not verifiable. TEE/FHE/ZK would make it cryptographic."
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.779Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.779Z",
+      "type": "execution",
+      "action": "hold",
+      "data": {
+        "success": true,
+        "action": "hold",
+        "valueUsd": 0
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.779Z",
+      "type": "verification",
+      "action": "demo-cycle-complete",
+      "data": {
+        "phases": [
+          "discover",
+          "reason",
+          "scope",
+          "execute",
+          "verify"
+        ],
+        "decision": "hold",
+        "scopeEnforcement": "local (on-chain in production)"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.780Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.783Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": true,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.012",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.012 ETH → USDC via Uniswap V3 exactInputSingle"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.783Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": false
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.1",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.1 ETH → USDC (OVER PER-TX LIMIT)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.784Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": false
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.0",
+          "selector": "0xa9059cbb",
+          "description": "Raw transfer (NOT in allowed functions)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:18.784Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": false
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0xdead000000000000000000000000000000000000",
+          "value": "0.01",
+          "selector": "0x04e45aaf",
+          "description": "Swap via unknown contract (NOT whitelisted)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.136Z",
+      "type": "tool_call",
+      "action": "market-data-fetch",
+      "data": {
+        "tokens": [
+          "ETH",
+          "USDC",
+          "DAI"
+        ],
+        "count": 3,
+        "source": "coingecko"
+      },
+      "durationMs": 816
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.139Z",
+      "type": "decision",
+      "action": "discover-complete",
+      "data": {
+        "tokens": [
+          {
+            "symbol": "ETH",
+            "price": 2275.05
+          },
+          {
+            "symbol": "USDC",
+            "price": 1
+          },
+          {
+            "symbol": "DAI",
+            "price": 0.999908
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.140Z",
+      "type": "decision",
+      "action": "venice-analysis",
+      "data": {
+        "action": "hold",
+        "token": "ETH",
+        "confidence": 0.7,
+        "riskScore": 0.6,
+        "reasoning": "ETH showing strong momentum but 24h gain exceeds comfort zone. Wait for pullback.",
+        "provider": "venice.ai",
+        "dataRetention": "none",
+        "trustBoundary": "Venice promises no retention. This is a trust assumption, not verifiable. TEE/FHE/ZK would make it cryptographic."
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.143Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.143Z",
+      "type": "execution",
+      "action": "hold",
+      "data": {
+        "success": true,
+        "action": "hold",
+        "valueUsd": 0
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.144Z",
+      "type": "verification",
+      "action": "demo-cycle-complete",
+      "data": {
+        "phases": [
+          "discover",
+          "reason",
+          "scope",
+          "execute",
+          "verify"
+        ],
+        "decision": "hold",
+        "scopeEnforcement": "local (on-chain in production)"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.146Z",
+      "type": "decision",
+      "action": "scope-local-init",
+      "data": {
+        "mode": "local-fallback",
+        "dailyLimit": "0.5",
+        "maxPerTx": "0.05",
+        "allowedFunctions": 2,
+        "note": "Local policy mirrors on-chain structure but is NOT cryptographically enforced"
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.147Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": true,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.012",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.012 ETH → USDC via Uniswap V3 exactInputSingle"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.148Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": true
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": false
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.1",
+          "selector": "0x04e45aaf",
+          "description": "Swap 0.1 ETH → USDC (OVER PER-TX LIMIT)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.149Z",
+      "type": "safety_check",
+      "action": "agent-scope-validate",
+      "data": {
+        "approved": false,
+        "enforcement": "local",
+        "note": "Local fallback — not cryptographically enforced",
+        "checks": [
+          {
+            "name": "Policy active",
+            "passed": true
+          },
+          {
+            "name": "Session expiry",
+            "passed": true
+          },
+          {
+            "name": "Contract whitelist",
+            "passed": true
+          },
+          {
+            "name": "Function selector",
+            "passed": false
+          },
+          {
+            "name": "Per-transaction limit",
+            "passed": true
+          },
+          {
+            "name": "Daily spending limit",
+            "passed": true
+          }
+        ],
+        "proposal": {
+          "to": "0x2626664c2603336E57B271c5C0b26F421741e481",
+          "value": "0.0",
+          "selector": "0xa9059cbb",
+          "description": "Raw transfer (NOT in allowed functions)"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-03-16T11:15:55.149Z",
       "type": "safety_check",
       "action": "agent-scope-validate",
       "data": {

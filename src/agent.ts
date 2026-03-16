@@ -145,13 +145,17 @@ export class GhostProtocolAgent {
       console.log(`\n   🛡️  Phase 3: SCOPE — ${this.scope.isOnChain ? 'On-chain contract validation' : 'Local policy validation'}...`);
 
       // Build the transaction proposal
-      const amountWei = ethers.parseEther((decision.amount || 10).toString());
+      // Convert USD amount to ETH using current market price
+      const ethMarketData = marketData.find(d => d.symbol === 'ETH') || marketData[0];
+      const amountUsd = decision.amount || 0.03; // ~$70 at current prices, reasonable default
+      const ethAmount = amountUsd / ethMarketData.price;
+      const amountWei = ethers.parseEther(ethAmount.toFixed(6));
       const tokenOut = decision.action === 'buy' ? decision.token : 'USDC';
       const proposal: TransactionProposal = {
         to: UNISWAP_V3_ROUTER,
         value: decision.action === 'buy' ? amountWei : 0n,
         data: '0x04e45aaf' + '0'.repeat(64), // exactInputSingle placeholder
-        description: `${decision.action.toUpperCase()} ${decision.token}: ${ethers.formatEther(amountWei)} ETH via Uniswap V3`,
+        description: `${decision.action.toUpperCase()} ${decision.token}: $${amountUsd} (${ethAmount.toFixed(6)} ETH) via Uniswap V3`,
       };
 
       const validation = await this.scope.validate(proposal);
