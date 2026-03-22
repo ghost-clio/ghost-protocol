@@ -84,6 +84,8 @@ Also works without the bridge contract — just set `erc8004.*` text records on 
 ## Quick Start
 
 ```bash
+git clone https://github.com/ghost-clio/ghost-protocol.git
+cd ghost-protocol
 npm install
 
 # Demo mode (no API keys needed)
