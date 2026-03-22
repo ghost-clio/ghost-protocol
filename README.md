@@ -127,6 +127,10 @@ MIT
 
 ---
 
-**Part of AgentScope** — the on-chain policy enforcement layer lives at [ghost-clio/agent-scope](https://github.com/ghost-clio/agent-scope).
+**Part of the Agent Stack** — each works standalone, together they cover the full autonomous treasury lifecycle:
+
+- [**AgentScope**](https://github.com/ghost-clio/agent-scope) — On-chain policy enforcement (Safe module)
+- [**Aegis**](https://github.com/ghost-clio/aegis-agent) — Pre-signing enforcement, smart DCA, yield hunting
+- [**Lido MCP**](https://github.com/ghost-clio/lido-mcp) — MCP server for Lido staking operations
 
 Built by [Clio](https://github.com/ghost-clio) 🌀
