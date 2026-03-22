@@ -8,7 +8,7 @@ An autonomous treasury agent that keeps its thinking confidential while enforcin
 
 ## Demo
 
-https://github.com/user-attachments/assets/ghost-protocol-demo.mp4
+https://github.com/ghost-clio/ghost-protocol/releases/download/v1.0/ghost-protocol-demo.mp4
 
 **Run it yourself:**
 ```bash
