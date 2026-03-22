@@ -1,0 +1,189 @@
+
+> ghost-protocol@1.0.0 demo
+> npx tsx src/demo.ts
+
+╔══════════════════════════════════════════╗
+║        🌀 GHOST PROTOCOL v1.0.0         ║
+║  Confidential Reasoning · Scoped Action  ║
+║                                          ║
+║   Built by Clio — ghost in the machine   ║
+║            🧪 DEMO MODE                  ║
+╚══════════════════════════════════════════╝
+
+⛓️  Chain: Base (base)
+🔗 RPC: https://mainnet.base.org
+🔍 Explorer: https://basescan.org
+🆔 ENS: enabled (no name set)
+🔒 Venice: configured
+💱 Uniswap: demo mode
+🛡️  Scope: local fallback
+💰 Wallet: configured
+🧪 Dry run: true
+📊 Tokens: ETH, USDC, DAI
+
+📡 Phase 1: DISCOVER — Fetching real market data...
+
+  📊 ETH: $2116.40 (-1.81% 24h)
+  📊 USDC: $1.00 (-0.01% 24h)
+  📊 DAI: $1.00 (-0.01% 24h)
+
+🔒 Phase 2: REASON — Confidential analysis via Venice.ai...
+   (Venice no-data-retention API — trust assumption, not cryptographic guarantee)
+
+  💭 Decision: HOLD 
+  📈 Confidence: 65.0%
+  ⚠️  Risk Score: 30.0%
+  📝 Reasoning: Market stable. No strong signal. Preserve capital.
+
+🛡️  Phase 3: SCOPE — AgentScope policy validation...
+
+  ⏸️  HOLD decision — no transaction to validate
+  (AgentScope only gates execution, not reasoning)
+
+⚡ Phase 4: EXECUTE...
+
+  ⏸️  HOLD — No swap needed. Capital preserved.
+
+📋 Phase 5: VERIFY — Logging to agent_log.json...
+
+  📊 Agent Log Summary:
+     Decisions: 67
+     Tool calls: 19
+     Trades executed: 19
+     Errors: 0
+     Value moved: $0.00
+     Log entries: 187
+
+  📁 Full log: agent_log.json
+  📁 Manifest: agent.json
+
+🛡️  AgentScope — On-Chain Permission Enforcement
+
+  The human sets the policy. The blockchain enforces it.
+  The agent operates freely within its scope — but cannot exceed it.
+
+  📜 Deployed contracts (Sepolia):
+     AgentScopeModule: 0x0d0034c6AC4640463bf480cB07BE770b08Bef811
+     MockSafe:         0x51157a48b0A00D6C9C49f0AaEe98a27511DD180a
+
+  📋 Policy (set by human, enforced by contract):
+     Daily limit:        0.5 ETH
+     Per-transaction:    0.05 ETH
+     Allowed contracts:  Uniswap V3 Router only
+     Allowed functions:  exactInputSingle, swapExactTokensForTokens
+     Session expiry:     None
+
+  ─── Test 1: Valid swap (0.012 ETH → USDC via Uniswap) ───
+     ✅ Policy active: Agent scope is active
+     ✅ Session expiry: No expiry set
+     ✅ Contract whitelist: 0x2626664c... is whitelisted
+     ✅ Function selector: 0x04e45aaf is whitelisted
+     ✅ Per-transaction limit: 0.012 / 0.05 ETH
+     ✅ Daily spending limit: 0.012 requested, 0.5 remaining of 0.5 ETH/day
+     Enforcement: local
+     Result: ✅ APPROVED
+
+  ─── Test 2: Over per-tx limit (0.1 ETH — exceeds 0.05 max) ───
+     ❌ Per-transaction limit: 0.1 / 0.05 ETH
+     Result: ❌ REJECTED — scope enforced
+
+  ─── Test 3: Unauthorized function (transfer — not a swap) ───
+     ❌ Function selector: 0xa9059cbb NOT in allowed functions
+     Result: ❌ REJECTED — function not in scope
+
+  ─── Test 4: Wrong contract (not Uniswap) ───
+     ❌ Contract whitelist: 0xdead0000... NOT in whitelist
+     Result: ❌ REJECTED — contract not in scope
+
+  📊 Scope Status:
+     Mode: local (fallback — not cryptographically enforced)
+     Daily limit: 0.5 ETH
+     Per-tx limit: 0.05 ETH
+     Remaining: 0.488 ETH
+
+  💡 In production:
+     Human deploys Safe → attaches AgentScopeModule → calls setAgentPolicy()
+     Agent calls executeAsAgent() → contract validates ALL checks → Safe executes
+     The LLM cannot modify the policy. Only the Safe owner can.
+     This is not a config file. This is a smart contract.
+
+
+🔗 ENS ↔ ERC-8004 Identity Bridge
+
+  The missing link between human-readable names and agent identity.
+  ENS gives names. ERC-8004 gives verifiable identity. This bridge connects them.
+
+  📡 Resolving vitalik.eth...
+  ✅ Address: 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  📝 Description: mi pinxe lo crino tcati
+  🤖 ERC-8004: No (not an agent)
+  📋 Text records: 5 found
+  🔍 Resolved via: ens-text-records
+
+  📋 Ghost Protocol ENS records (proposed convention):
+     erc8004.participantId = 040f2f50c2e942808ee11f25a3bb8996
+     erc8004.chain = base
+     erc8004.manifest = https://raw.githubusercontent.com/ghost-clio/ghost-protoc...
+     erc8004.registrationTxn = 0xc69cbb767affb96e06a65f7efda4a347409ac52a713c12d4203e3f4...
+     erc8004.capabilities = treasury-management, defi-execution, confidential-reasoning
+
+  🛡️ Trust assessment (vitalik.eth):
+     Level: LOW (score: 20/100)
+     ✅ ENS name resolves to valid address
+     ✅ ENS description set
+     ℹ️ No ERC-8004 identity (may not be an agent)
+
+  📜 ERC8004ENSBridge.sol — On-chain agent directory
+
+     ┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
+     │  ENS (L1)   │────▶│ ERC8004ENSBridge │◀────│ ERC-8004 (L2)│
+     │ ghost.eth   │     │   Links names    │     │ participantId│
+     │ human name  │     │   to identities  │     │ agent scope  │
+     └─────────────┘     └──────────────────┘     └──────────────┘
+
+     Registration flow:
+     1. Agent registers ERC-8004 identity on Base (L2)
+     2. Agent calls registerIdentity() on bridge (L1) with their ENS name
+     3. Bridge stores: ENS name ↔ participantId ↔ L2 chain ↔ manifest
+     4. Other agents call resolveAgent() or lookupByParticipantId()
+     5. Off-chain verification: check L2 tx receipt independently
+
+     Two paths to discovery:
+     A) Know a name?  → resolveAgent(namehash) → get participantId + manifest
+     B) Found an ID?  → lookupByParticipantId() → get ENS name + manifest
+
+     No oracle needed. No cross-chain messaging.
+     The bridge stores attestations. Verifiers check L2 independently.
+
+  🤝 Agent-to-agent trust scenario:
+
+     Ghost Protocol wants to interact with treasury.eth...
+     1. bridge.resolve("treasury.eth") → gets ERC-8004 identity
+     2. bridge.assessTrust("treasury.eth") → HIGH (score 85/100)
+        ✅ ENS resolves to valid address
+        ✅ ERC-8004 agent identity found
+        ✅ Identity verified via bridge contract
+        ✅ Agent manifest available
+        ✅ Capabilities: treasury-management, defi-execution
+     3. Ghost Protocol proceeds with transaction
+     4. If trust < threshold → refuse to interact
+
+     This is how agents build trust without humans in the loop.
+
+  💡 Set erc8004.* text records on your ENS name (no contract needed),
+     or register on ERC8004ENSBridge for richer attestation + reverse lookup.
+
+
+╔══════════════════════════════════════════╗
+║   Demo complete. Ghost Protocol works.   ║
+║                                          ║
+║   Pipeline: Venice → AgentScope → Safe   ║
+║   Confidential reasoning, scoped action, ║
+║   public receipts.                       ║
+║                                          ║
+║   Contracts (Sepolia):                    ║
+║   AgentScopeModule: 0x0d003...Bef811     ║
+║   ERC8004ENSBridge: 0xe4698...ABfdeB     ║
+║                                          ║
+║   🌀 The ghost is ready.                 ║
+╚══════════════════════════════════════════╝

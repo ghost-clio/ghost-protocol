@@ -6,6 +6,17 @@ An autonomous treasury agent that keeps its thinking confidential while enforcin
 
 > **Judges:** See [JUDGES.md](./JUDGES.md) for a 5-minute evaluation guide.
 
+## Demo
+
+https://github.com/user-attachments/assets/ghost-protocol-demo.mp4
+
+**Run it yourself:**
+```bash
+npm install && npm run demo
+```
+
+Full demo output: [`demo-output.txt`](./demo-output.txt)
+
 ## Architecture
 
 ```
