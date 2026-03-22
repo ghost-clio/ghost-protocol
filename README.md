@@ -11,11 +11,7 @@ https://github.com/user-attachments/assets/5d6d12f1-b432-41c1-8b19-08a569c761df
 
 
 
-**Run it yourself:**
-```bash
-git clone https://github.com/ghost-clio/ghost-protocol.git
-cd ghost-protocol && npm install && npm run demo
-```
+**Run it yourself:** `npm run demo` (no API keys needed)
 
 Full demo output: [`demo-output.txt`](./demo-output.txt)
 
