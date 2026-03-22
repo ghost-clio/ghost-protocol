@@ -5,9 +5,11 @@
 An autonomous treasury agent that keeps its thinking confidential while enforcing strict on-chain spending limits. Venice.ai handles inference with zero data retention. AgentScope enforces policy at the smart contract level. ENS bridges human-readable names to ERC-8004 agent identity.
 
 
-## Demo
 
-https://github.com/ghost-clio/ghost-protocol/releases/download/v1.0/ghost-protocol-demo.mp4
+https://github.com/user-attachments/assets/5d6d12f1-b432-41c1-8b19-08a569c761df
+
+
+
 
 **Run it yourself:**
 ```bash
